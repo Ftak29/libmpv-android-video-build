@@ -253,6 +253,8 @@ cpuflags=
 	--enable-encoder=jpegls \
 	\
 	--enable-network \
+	\
+	--enable-libsrt \
 
 make -j$cores
 make DESTDIR="$prefix_dir" install
