@@ -70,6 +70,10 @@ zip -r "default-armeabi-v7a.jar"              lib/armeabi-v7a
 zip -r "default-x86.jar"                      lib/x86
 zip -r "default-x86_64.jar"                   lib/x86_64
 
+pwd
+
+ls
+
 mkdir -p ../../../../../../../../../../output
 
 cp *.jar ../../../../../../../../../../output
@@ -77,6 +81,10 @@ cp *.jar ../../../../../../../../../../output
 md5sum *.jar
 
 cd ../../../../../../../../..
+
+pwd
+
+ls
 
 # --------------------------------------------------
 
