@@ -16,6 +16,9 @@ fi
 mkdir -p $build
 cd $build
 
+echo $CC
+which armv7a-linux-androideabi21-clang
+
 cmake .. \
 	-DENABLE_SHARED=ON \
 	-DENABLE_STATIC=OFF \
