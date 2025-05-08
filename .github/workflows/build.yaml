@@ -40,7 +40,7 @@ jobs:
       - name: Gradle Build Action
         uses: gradle/gradle-build-action@v2.3.3
       - name: Cache
-        uses: actions/cache@v3.2.4
+        uses: actions/cache@v4
         with:
           path: /usr/local/lib/android/sdk/ndk/${{ env.NDK_VER }}
           key: ${{ runner.os }}-${{ env.NDK_VER }}
