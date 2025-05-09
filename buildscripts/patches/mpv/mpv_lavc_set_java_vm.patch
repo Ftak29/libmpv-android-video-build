@@ -2,7 +2,7 @@ diff --git a/libmpv/client.h b/libmpv/client.h
 index fb10e5e..afbc952 100644
 --- a/libmpv/client.h
 +++ b/libmpv/client.h
-@@ -1707,6 +1707,15 @@ MPV_EXPORT mpv_event *mpv_wait_event(mpv_handle *ctx, double timeout);
+@@ -1730,6 +1730,15 @@ MPV_EXPORT mpv_event *mpv_wait_event(mpv_handle *ctx, double timeout);
   */
  MPV_EXPORT void mpv_wakeup(mpv_handle *ctx);
  
@@ -22,9 +22,9 @@ diff --git a/libmpv/mpv.def b/libmpv/mpv.def
 index 232490d..d7a2842 100644
 --- a/player/client.c
 +++ b/player/client.c
-@@ -22,6 +22,8 @@
- #include <math.h>
- #include <assert.h>
+@@ -23,6 +23,8 @@
+ #include <stdlib.h>
+ #include <unistd.h>
  
 +#include <libavcodec/jni.h>
 +
