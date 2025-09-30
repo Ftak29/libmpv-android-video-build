@@ -92,4 +92,3 @@ cd ../../../../../../../../..
 # --------------------------------------------------
 
 zip -q -r debug-symbols-default.zip prefix/*/lib
-cp debug-symbols-default.zip ../output
