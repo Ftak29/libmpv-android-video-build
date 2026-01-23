@@ -3,12 +3,8 @@ set -euxo pipefail
 
 export ENCODERS_GPL=1
 
-if [ -d deps ]; then
-  sudo rm -r deps
-fi
-if [ -d prefix ]; then
-  sudo rm -r prefix
-fi
+[ -d deps ] && sudo rm -rf deps
+[ -d prefix ] && sudo rm -rf prefix
 
 ./download.sh
 ./patch-encoders-gpl.sh

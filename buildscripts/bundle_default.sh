@@ -1,11 +1,8 @@
 # --------------------------------------------------
 
-if [ ! -f "deps" ]; then
-  sudo rm -r deps
-fi
-if [ ! -f "prefix" ]; then
-  sudo rm -r prefix
-fi
+[ -d deps ] && sudo rm -rf deps
+[ -d prefix ] && sudo rm -rf prefix
+
 
 ./download.sh || exit 1
 ./patch.sh || exit 1
