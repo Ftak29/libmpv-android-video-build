@@ -20,7 +20,7 @@ v_dav1d=1.5.3
 v_ffmpeg=8.0.1
 v_mpv=0.41.0
 #v_libvpx=1.15
-v_libvpx=1.15.2
+v_libvpx=1.15
 v_libwebp=1.6.0
 
 
