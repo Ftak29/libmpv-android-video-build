@@ -34,7 +34,6 @@ cpuflags=
 	--enable-static \
 	--disable-shared \
 	--disable-vulkan \
-	--disable-iconv \
 	--pkg-config-flags=--static \
 	\
 	--disable-muxers \
@@ -248,6 +247,8 @@ cpuflags=
 	--enable-encoder=libwebp_anim \
 	\
 	--enable-network \
+	--enable-filter=subtitles \
+	--enable-filter=ass \
 
 make -j$cores
 make DESTDIR="$prefix_dir" install
