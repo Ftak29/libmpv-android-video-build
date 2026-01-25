@@ -51,7 +51,8 @@ jobs:
       - name: Bundle (default)
         working-directory: ./buildscripts
         env:
-          FFMPEG_REPO: https://github.com/Ftak29/FFmpeg.git        
+          FFMPEG_REPO: https://github.com/Ftak29/FFmpeg.git
+          FFMPEG_REF: 1.0.0          
         run: |
           sudo chmod +x bundle_default.sh
           ./bundle_default.sh
