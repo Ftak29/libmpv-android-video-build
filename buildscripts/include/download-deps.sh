@@ -23,7 +23,15 @@ git config --global advice.detachedHead false
 [ ! -d libx264 ] && git clone --depth 1 https://code.videolan.org/videolan/x264.git --branch master libx264
 
 # ffmpeg
-[ ! -d ffmpeg ] && git clone --depth 1 --branch n$v_ffmpeg https://github.com/FFmpeg/FFmpeg.git ffmpeg
+#[ ! -d ffmpeg ] && git clone --depth 1 --branch n$v_ffmpeg https://github.com/FFmpeg/FFmpeg.git ffmpeg
+# ffmpeg (allow override via env)
+FFMPEG_REPO="${FFMPEG_REPO:-https://github.com/Ftak29/FFmpeg.git}"
+FFMPEG_REF="${FFMPEG_REF:-n$v_ffmpeg}"
+
+if [ ! -d ffmpeg ]; then
+  echo "Cloning FFmpeg from: $FFMPEG_REPO (ref: $FFMPEG_REF)"
+  git clone --depth 1 --branch "$FFMPEG_REF" "$FFMPEG_REPO" ffmpeg
+fi
 
 # freetype2
 [ ! -d freetype ] && git clone --depth 1 --branch VER-$v_freetype https://gitlab.freedesktop.org/freetype/freetype.git freetype
