@@ -29,47 +29,62 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
+
       - name: Setup Java JDK
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21
           cache: 'gradle'
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5
+
       - name: Setup Flutter SDK
         uses: subosito/flutter-action@v2
         with:
           channel: "stable"
           cache: true
+
       - name: Symlink SDK
         working-directory: ./buildscripts
         run: |
-          mkdir sdk
-          ln -s ${ANDROID_HOME} ./sdk/android-sdk-linux
+          mkdir -p sdk
+          ln -sf ${ANDROID_HOME} ./sdk/android-sdk-linux
+
       - name: Bundle (default)
         working-directory: ./buildscripts
         env:
           FFMPEG_REPO: https://github.com/Ftak29/FFmpeg.git
-          FFMPEG_REF: 1.0.0          
+          FFMPEG_REF: 1.0.0
         run: |
+          set -euo pipefail
           sudo chmod +x bundle_default.sh
           ./bundle_default.sh
-      #- name: Bundle (full)
-      #  working-directory: ./buildscripts
-      #  run: |
-      #    sudo chmod +x bundle_full.sh
-      #    ./bundle_full.sh
-      #- name: Bundle (encoders-gpl)
-      #  working-directory: ./buildscripts
-      #  run: |
-      #    sudo chmod +x bundle_encoders-gpl.sh
-      #    ./bundle_encoders-gpl.sh
+
+      # Optional but very useful: shows you where the build dropped AAR/SO
+      - name: List outputs (debug)
+        if: always()
+        run: |
+          echo "==== output/ ===="
+          ls -la ./output || true
+          echo "==== find AAR/JAR/SO ===="
+          find . -maxdepth 8 -type f \( -name "*.aar" -o -name "*.jar" -o -name "libmpv.so" \) -print | sort || true
+
       - uses: actions/upload-artifact@v4
         with:
           name: artifact
-          path: ./output/*.jar
+          path: |
+            ./output/*.jar
+            ./output/**/*.jar
+            ./output/*.aar
+            ./output/**/*.aar
+            **/build/outputs/aar/*.aar
+            **/jni/**/libmpv.so
+            **/lib/**/libmpv.so
+            **/libmpv.so
+
       - uses: softprops/action-gh-release@v1
         if: ${{ github.event.inputs.release == 'true' }}
         with:
@@ -78,3 +93,7 @@ jobs:
           tag_name: "vnext"
           files: |
             output/*.jar
+            output/**/*.jar
+            output/*.aar
+            output/**/*.aar
+            **/build/outputs/aar/*.aar
