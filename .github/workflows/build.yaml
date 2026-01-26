@@ -63,7 +63,6 @@ jobs:
           sudo chmod +x bundle_default.sh
           ./bundle_default.sh
 
-      # Optional but very useful: shows you where the build dropped AAR/SO
       - name: List outputs (debug)
         if: always()
         run: |
