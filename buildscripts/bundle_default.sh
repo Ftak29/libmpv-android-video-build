@@ -3,7 +3,6 @@
 [ -d deps ] && sudo rm -rf deps
 [ -d prefix ] && sudo rm -rf prefix
 
-
 ./download.sh || exit 1
 ./patch.sh || exit 1
 
@@ -60,29 +59,66 @@ cd build/app/outputs/apk/release/ || exit 1
 
 # --------------------------------------------------
 
-rm -r lib/*/libapp.so
-rm -r lib/*/libflutter.so
+rm -f lib/*/libapp.so
+rm -f lib/*/libflutter.so
 
-# archs=("arm64-v8a" "armeabi-v7a" "x86" "x86_64")
-# pairs=("aarch64-linux-android" "arm-linux-androideabi" "i686-linux-android" "x86_64-linux-android")
-
-# for i in "${!archs[@]}"; do
-#     arch=${archs[$i]}
-#     pair=${pairs[$i]}
-#     cp ../../../../../../../../../prefix/${arch}/lib/{libsrt.so,libmbedcrypto.so,libmbedtls.so,libmbedx509.so} lib/${arch}
-#     cp ../../../../../../../../../sdk/android-sdk-linux/ndk/25.2.9519653/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/${pair}/libc++_shared.so lib/${arch}
-# done
+# --------------------------------------------------
+# OLD BEHAVIOR (kept): zip lib folders into per-ABI JARs
+# --------------------------------------------------
 
 zip -q -r "default-arm64-v8a.jar"                lib/arm64-v8a
 zip -q -r "default-armeabi-v7a.jar"              lib/armeabi-v7a
 zip -q -r "default-x86.jar"                      lib/x86
 zip -q -r "default-x86_64.jar"                   lib/x86_64
 
+# --------------------------------------------------
+# NEW BEHAVIOR: create ONE AAR that contains all ABIs
+# This is what Android/Gradle expects for native libs.
+# --------------------------------------------------
+
+AAR_NAME="default.aar"
+AAR_TMP="$(pwd)/.aar_tmp"
+
+rm -rf "${AAR_TMP}"
+mkdir -p "${AAR_TMP}/jni"
+
+# Copy all native libs from the unzipped APK into AAR jni/<abi>/
+for ABI in arm64-v8a armeabi-v7a x86 x86_64; do
+  if [ -d "lib/${ABI}" ]; then
+    mkdir -p "${AAR_TMP}/jni/${ABI}"
+    cp -a "lib/${ABI}/." "${AAR_TMP}/jni/${ABI}/"
+  fi
+done
+
+# Minimal AndroidManifest.xml required by AAR
+cat > "${AAR_TMP}/AndroidManifest.xml" <<'EOF'
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="dev.jdtech.mpv.default">
+  <uses-sdk android:minSdkVersion="21" />
+</manifest>
+EOF
+
+# AAR requires classes.jar. Make a tiny placeholder.
+# (Does not contain code; you can add real classes later if needed.)
+mkdir -p "${AAR_TMP}/.classes_tmp"
+echo "placeholder" > "${AAR_TMP}/.classes_tmp/placeholder.txt"
+( cd "${AAR_TMP}/.classes_tmp" && zip -q -r "../classes.jar" . )
+rm -rf "${AAR_TMP}/.classes_tmp"
+
+# Build the AAR (AAR is just a ZIP)
+rm -f "${AAR_NAME}"
+( cd "${AAR_TMP}" && zip -q -r "../${AAR_NAME}" . )
+
+# --------------------------------------------------
+
 mkdir -p ../../../../../../../../../../output
 
+# Copy both JARs and AAR to output
 cp *.jar ../../../../../../../../../../output
+cp "${AAR_NAME}" ../../../../../../../../../../output
 
-md5sum *.jar
+echo "==== Output checksums ===="
+md5sum *.jar "${AAR_NAME}" || true
 
 cd ../../../../../../../../..
 
