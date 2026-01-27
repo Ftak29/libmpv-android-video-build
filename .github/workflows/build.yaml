@@ -85,15 +85,16 @@ jobs:
             **/libmpv.so
 
       - name: Create/Update GitHub Release (vnext)
-        if: ${{ github.event.inputs.release == 'true' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.release }}
         uses: softprops/action-gh-release@v2
         with:
-          draft: true
+          draft: false
           prerelease: false
           tag_name: vnext
+          target_commitish: main
           name: vnext
+          generate_release_notes: false
           fail_on_unmatched_files: false
           files: |
             output/*.aar
             output/*.jar
-
