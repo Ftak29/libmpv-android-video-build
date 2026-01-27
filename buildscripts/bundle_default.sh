@@ -1,51 +1,9 @@
-# --------------------------------------------------
+#!/usr/bin/env bash
+set -euo pipefail
 
-[ -d deps ] && sudo rm -rf deps
-[ -d prefix ] && sudo rm -rf prefix
-
-./download.sh || exit 1
-./patch.sh || exit 1
-
-# --------------------------------------------------
-
-if [ ! -f "scripts/ffmpeg" ]; then
-  rm scripts/ffmpeg.sh
-fi
-cp flavors/default.sh scripts/ffmpeg.sh
-
-# --------------------------------------------------
-
-./build.sh || exit 1
-
-# --------------------------------------------------
-
-echo "chdir media-kit-android-helpe"
-cd deps/media-kit-android-helper || exit 1
-
-sudo chmod +x gradlew
-./gradlew assembleRelease
-
-unzip -q -o app/build/outputs/apk/release/app-release.apk -d app/build/outputs/apk/release
-
-ln -sf "$(pwd)/app/build/outputs/apk/release/lib/arm64-v8a/libmediakitandroidhelper.so"   "../../../libmpv/src/main/jniLibs/arm64-v8a"
-ln -sf "$(pwd)/app/build/outputs/apk/release/lib/armeabi-v7a/libmediakitandroidhelper.so" "../../../libmpv/src/main/jniLibs/armeabi-v7a"
-ln -sf "$(pwd)/app/build/outputs/apk/release/lib/x86_64/libmediakitandroidhelper.so"      "../../../libmpv/src/main/jniLibs/x86_64"
-
-cd ../..
-
-# --------------------------------------------------
-
-cd deps/media_kit/media_kit_native_event_loop || exit 1
-
-flutter create --org com.alexmercerind --template plugin_ffi --platforms=android .
-
-if ! grep -q android "pubspec.yaml"; then
-  printf "      android:\n        ffiPlugin: true\n" >> pubspec.yaml
-fi
-
-flutter pub get
-
-cp -a ../../mpv/include/mpv/. src/include/
+# -----------------------------
+# Build "default" flavor AAR + per-ABI jars
+# -----------------------------
 
 cd example || exit 1
 
@@ -56,70 +14,72 @@ unzip -q -o build/app/outputs/apk/release/app-release.apk -d build/app/outputs/a
 
 cd build/app/outputs/apk/release/ || exit 1
 
-# --------------------------------------------------
+# Remove Flutter & app libs; keep mpv + helper libs we want to ship
+rm -r lib/*/libapp.so || true
+rm -r lib/*/libflutter.so || true
 
-rm -f lib/*/libapp.so
-rm -f lib/*/libflutter.so
+# -----------------------------
+# Create an AAR-like structure
+# -----------------------------
+rm -rf jni || true
+mkdir -p jni
 
-# --------------------------------------------------
-# OLD BEHAVIOR (kept): zip lib folders into per-ABI JARs
-# --------------------------------------------------
-
-zip -q -r "default-arm64-v8a.jar"                lib/arm64-v8a
-zip -q -r "default-armeabi-v7a.jar"              lib/armeabi-v7a
-zip -q -r "default-x86_64.jar"                   lib/x86_64
-
-# --------------------------------------------------
-# NEW BEHAVIOR: create ONE AAR that contains all ABIs
-# This is what Android/Gradle expects for native libs.
-# --------------------------------------------------
-
-AAR_NAME="default.aar"
-AAR_TMP="$(pwd)/.aar_tmp"
-
-rm -rf "${AAR_TMP}"
-mkdir -p "${AAR_TMP}/jni"
-
-# Copy all native libs from the unzipped APK into AAR jni/<abi>/
-for ABI in arm64-v8a armeabi-v7a x86 x86_64; do
-  if [ -d "lib/${ABI}" ]; then
-    mkdir -p "${AAR_TMP}/jni/${ABI}"
-    cp -a "lib/${ABI}/." "${AAR_TMP}/jni/${ABI}/"
+# Copy native libs from the APK into AAR "jni/<abi>/..."
+# (AAR expects jni/<abi>/*.so)
+for abi in arm64-v8a armeabi-v7a x86_64; do
+  if [ -d "lib/${abi}" ]; then
+    mkdir -p "jni/${abi}"
+    cp -a "lib/${abi}/." "jni/${abi}/"
   fi
 done
 
-# Minimal AndroidManifest.xml required by AAR
-cat > "${AAR_TMP}/AndroidManifest.xml" <<'EOF'
+# IMPORTANT:
+# "default" is a Java keyword and cannot be a package segment.
+# Use a safe package name in the AAR manifest.
+cat > AndroidManifest.xml << 'EOF'
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="dev.jdtech.mpv.default">
-  <uses-sdk android:minSdkVersion="21" />
+    package="dev.jdtech.mpv.libmpv_default">
+  <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="36" />
 </manifest>
 EOF
 
-# AAR requires classes.jar. Make a tiny placeholder.
-# (Does not contain code; you can add real classes later if needed.)
-mkdir -p "${AAR_TMP}/.classes_tmp"
-echo "placeholder" > "${AAR_TMP}/.classes_tmp/placeholder.txt"
-( cd "${AAR_TMP}/.classes_tmp" && zip -q -r "../classes.jar" . )
-rm -rf "${AAR_TMP}/.classes_tmp"
+# Package the AAR
+rm -f default.aar || true
+zip -q -r default.aar jni AndroidManifest.xml
 
-# Build the AAR (AAR is just a ZIP)
-rm -f "${AAR_NAME}"
-( cd "${AAR_TMP}" && zip -q -r "../${AAR_NAME}" . )
+# -----------------------------
+# Also produce per-ABI jars (legacy)
+# -----------------------------
+# If you still want the jars for legacy consumers:
+rm -f default-arm64-v8a.jar default-armeabi-v7a.jar default-x86_64.jar || true
 
-# --------------------------------------------------
+if [ -d "lib/arm64-v8a" ]; then
+  (mkdir -p libtmp/arm64-v8a && cp -a lib/arm64-v8a libtmp/ && cd libtmp && zip -q -r ../default-arm64-v8a.jar arm64-v8a)
+  rm -rf libtmp
+fi
 
-mkdir -p ../../../../../../../../../../output
+if [ -d "lib/armeabi-v7a" ]; then
+  (mkdir -p libtmp/armeabi-v7a && cp -a lib/armeabi-v7a libtmp/ && cd libtmp && zip -q -r ../default-armeabi-v7a.jar armeabi-v7a)
+  rm -rf libtmp
+fi
 
-# Copy both JARs and AAR to output
-cp *.jar ../../../../../../../../../../output
-cp "${AAR_NAME}" ../../../../../../../../../../output
+if [ -d "lib/x86_64" ]; then
+  (mkdir -p libtmp/x86_64 && cp -a lib/x86_64 libtmp/ && cd libtmp && zip -q -r ../default-x86_64.jar x86_64)
+  rm -rf libtmp
+fi
 
-echo "==== Output checksums ===="
-md5sum *.jar "${AAR_NAME}" || true
+# -----------------------------
+# Export outputs to top-level /output
+# -----------------------------
+cd ../../../../../../.. || exit 1
 
-cd ../../../../../../../../..
+mkdir -p output
+cp -f example/build/app/outputs/apk/release/default.aar output/default.aar
 
-# --------------------------------------------------
+# copy jars if they exist
+[ -f example/build/app/outputs/apk/release/default-arm64-v8a.jar ] && cp -f example/build/app/outputs/apk/release/default-arm64-v8a.jar output/ || true
+[ -f example/build/app/outputs/apk/release/default-armeabi-v7a.jar ] && cp -f example/build/app/outputs/apk/release/default-armeabi-v7a.jar output/ || true
+[ -f example/build/app/outputs/apk/release/default-x86_64.jar ] && cp -f example/build/app/outputs/apk/release/default-x86_64.jar output/ || true
 
-# zip -q -r debug-symbols-default.zip prefix/*/lib
+echo "Built:"
+ls -la output || true
