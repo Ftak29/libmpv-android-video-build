@@ -1,31 +1,54 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# -----------------------------
-# Build "default" flavor AAR + per-ABI jars
-# -----------------------------
+# -------------------------------------------------------------------
+# Robust paths: this script lives in <repo>/buildscripts/
+# We always resolve repo root and work from there.
+# -------------------------------------------------------------------
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-cd example || exit 1
+EXAMPLE_DIR="${REPO_ROOT}/example"
+OUTPUT_DIR="${REPO_ROOT}/output"
+
+if [ ! -d "${EXAMPLE_DIR}" ]; then
+  echo "ERROR: example/ folder not found at: ${EXAMPLE_DIR}"
+  echo "Repo root resolved as: ${REPO_ROOT}"
+  echo "Contents of repo root:"
+  ls -la "${REPO_ROOT}" || true
+  exit 1
+fi
+
+cd "${EXAMPLE_DIR}"
 
 flutter clean
 flutter build apk --release
 
-unzip -q -o build/app/outputs/apk/release/app-release.apk -d build/app/outputs/apk/release
+APK_PATH="build/app/outputs/apk/release/app-release.apk"
+if [ ! -f "${APK_PATH}" ]; then
+  echo "ERROR: APK not found at: ${EXAMPLE_DIR}/${APK_PATH}"
+  find build -maxdepth 6 -type f -name "*.apk" -print || true
+  exit 1
+fi
 
-cd build/app/outputs/apk/release/ || exit 1
+# Extract APK
+rm -rf build/app/outputs/apk/release/unpacked || true
+mkdir -p build/app/outputs/apk/release/unpacked
+unzip -q -o "${APK_PATH}" -d build/app/outputs/apk/release/unpacked
 
-# Remove Flutter & app libs; keep mpv + helper libs we want to ship
-rm -r lib/*/libapp.so || true
-rm -r lib/*/libflutter.so || true
+cd build/app/outputs/apk/release/unpacked
+
+# Remove Flutter/app libs; keep mpv + helper libs we want to ship
+rm -f lib/*/libapp.so || true
+rm -f lib/*/libflutter.so || true
 
 # -----------------------------
-# Create an AAR-like structure
+# Create an AAR structure
 # -----------------------------
 rm -rf jni || true
 mkdir -p jni
 
 # Copy native libs from the APK into AAR "jni/<abi>/..."
-# (AAR expects jni/<abi>/*.so)
 for abi in arm64-v8a armeabi-v7a x86_64; do
   if [ -d "lib/${abi}" ]; then
     mkdir -p "jni/${abi}"
@@ -35,7 +58,6 @@ done
 
 # IMPORTANT:
 # "default" is a Java keyword and cannot be a package segment.
-# Use a safe package name in the AAR manifest.
 cat > AndroidManifest.xml << 'EOF'
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="dev.jdtech.mpv.libmpv_default">
@@ -50,7 +72,6 @@ zip -q -r default.aar jni AndroidManifest.xml
 # -----------------------------
 # Also produce per-ABI jars (legacy)
 # -----------------------------
-# If you still want the jars for legacy consumers:
 rm -f default-arm64-v8a.jar default-armeabi-v7a.jar default-x86_64.jar || true
 
 if [ -d "lib/arm64-v8a" ]; then
@@ -69,17 +90,14 @@ if [ -d "lib/x86_64" ]; then
 fi
 
 # -----------------------------
-# Export outputs to top-level /output
+# Export outputs to repo /output
 # -----------------------------
-cd ../../../../../../.. || exit 1
+mkdir -p "${OUTPUT_DIR}"
+cp -f default.aar "${OUTPUT_DIR}/default.aar"
 
-mkdir -p output
-cp -f example/build/app/outputs/apk/release/default.aar output/default.aar
+[ -f default-arm64-v8a.jar ] && cp -f default-arm64-v8a.jar "${OUTPUT_DIR}/" || true
+[ -f default-armeabi-v7a.jar ] && cp -f default-armeabi-v7a.jar "${OUTPUT_DIR}/" || true
+[ -f default-x86_64.jar ] && cp -f default-x86_64.jar "${OUTPUT_DIR}/" || true
 
-# copy jars if they exist
-[ -f example/build/app/outputs/apk/release/default-arm64-v8a.jar ] && cp -f example/build/app/outputs/apk/release/default-arm64-v8a.jar output/ || true
-[ -f example/build/app/outputs/apk/release/default-armeabi-v7a.jar ] && cp -f example/build/app/outputs/apk/release/default-armeabi-v7a.jar output/ || true
-[ -f example/build/app/outputs/apk/release/default-x86_64.jar ] && cp -f example/build/app/outputs/apk/release/default-x86_64.jar output/ || true
-
-echo "Built:"
-ls -la output || true
+echo "Built outputs:"
+ls -la "${OUTPUT_DIR}" || true
