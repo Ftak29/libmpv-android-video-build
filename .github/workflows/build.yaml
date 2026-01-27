@@ -84,15 +84,16 @@ jobs:
             **/lib/**/libmpv.so
             **/libmpv.so
 
-      - uses: softprops/action-gh-release@v1
+      - name: Create/Update GitHub Release (vnext)
         if: ${{ github.event.inputs.release == 'true' }}
+        uses: softprops/action-gh-release@v2
         with:
           draft: true
           prerelease: false
-          tag_name: "vnext"
+          tag_name: vnext
+          name: vnext
+          fail_on_unmatched_files: false
           files: |
-            output/*.jar
-            output/**/*.jar
             output/*.aar
-            output/**/*.aar
-            **/build/outputs/aar/*.aar
+            output/*.jar
+
