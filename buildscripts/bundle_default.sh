@@ -48,9 +48,25 @@ cd deps/media_kit/media_kit_native_event_loop || exit 1
 # Ensure this is a Flutter package with Android enabled
 flutter create --org com.alexmercerind --template plugin_ffi --platforms=android . || true
 
-# Ensure pubspec has android ffiPlugin section
-if ! grep -q "android:" "pubspec.yaml"; then
-  printf "\nflutter:\n  plugin:\n    platforms:\n      android:\n        ffiPlugin: true\n" >> pubspec.yaml
+# Ensure pubspec.yaml has flutter.plugin.platforms.android.ffiPlugin = true
+# Avoid duplicate "flutter:" keys.
+if ! grep -qE '^\s*flutter:\s*$' pubspec.yaml; then
+  printf "\nflutter:\n" >> pubspec.yaml
+fi
+
+# If plugin block doesn't exist, append minimal plugin config under flutter:
+if ! grep -qE '^\s*plugin:\s*$' pubspec.yaml; then
+  cat >> pubspec.yaml <<'EOF'
+  plugin:
+    platforms:
+      android:
+        ffiPlugin: true
+EOF
+else
+  # If plugin exists but android ffiPlugin not present, you must add manually (YAML indentation matters)
+  if ! grep -qE 'ffiPlugin:\s*true' pubspec.yaml; then
+    echo "WARNING: pubspec.yaml has flutter.plugin already; please ensure android.ffiPlugin: true exists (manual merge may be required)."
+  fi
 fi
 
 flutter pub get
