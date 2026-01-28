@@ -37,13 +37,9 @@ cpuflags=
 	--pkg-config-flags=--static \
 	\
 	--disable-muxers \
-	--disable-decoders \
 	--disable-encoders \
-	--disable-demuxers \
 	--disable-parsers \
-	--disable-protocols \
 	--disable-devices \
-	--disable-filters \
 	--disable-doc \
 	--disable-avdevice \
 	--disable-programs \
@@ -138,6 +134,8 @@ cpuflags=
 	--enable-decoder=vplayer \
 	--enable-decoder=webvtt \
 	--enable-decoder=movtext \
+    --enable-decoder=eia_608 \
+    --enable-decoder=cea708 \	
 	\
 	--enable-demuxer=concat \
 	--enable-demuxer=data \
@@ -202,6 +200,7 @@ cpuflags=
 	--enable-parser=mpeg4 \
 	--enable-parser=mpeg4video \
 	--enable-parser=mpegvideo \
+    --enable-parser=eia_608 \	
 	\
 	--enable-parser=aac* \
 	--enable-parser=ac3 \
