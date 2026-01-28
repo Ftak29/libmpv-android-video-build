@@ -16,17 +16,27 @@ mkdir -p _build$ndk_suffix
 cd _build$ndk_suffix
 
 cpu=armv7-a
-[[ "$ndk_triple" == "aarch64"* ]] && cpu=armv8-a
-[[ "$ndk_triple" == "x86_64"* ]] && cpu=generic
-[[ "$ndk_triple" == "i686"* ]] && cpu="i686 --disable-asm"
+extra_cpu_flags=()
+
+if [[ "$ndk_triple" == aarch64* ]]; then
+	cpu=armv8-a
+elif [[ "$ndk_triple" == x86_64* ]]; then
+	cpu=generic
+elif [[ "$ndk_triple" == i686* ]]; then
+	cpu=i686
+	extra_cpu_flags+=(--disable-asm)
+fi
 
 cpuflags=
-[[ "$ndk_triple" == "arm"* ]] && cpuflags="$cpuflags -mfpu=neon -mcpu=cortex-a8"
+if [[ "$ndk_triple" == arm* ]]; then
+	cpuflags="$cpuflags -mfpu=neon -mcpu=cortex-a8"
+fi
 
 ../configure \
-	--target-os=android --enable-cross-compile --cross-prefix=$ndk_triple- --ar=$AR --cc=$CC --ranlib=$RANLIB \
-	--arch=${ndk_triple%%-*} --cpu=$cpu --pkg-config=pkg-config --nm=llvm-nm \
+	--target-os=android --enable-cross-compile --cross-prefix="$ndk_triple-" --ar="$AR" --cc="$CC" --ranlib="$RANLIB" \
+	--arch="${ndk_triple%%-*}" --cpu="$cpu" --pkg-config=pkg-config --nm=llvm-nm \
 	--extra-cflags="-I$prefix_dir/include $cpuflags" --extra-ldflags="-L$prefix_dir/lib" \
+	"${extra_cpu_flags[@]}" \
 	\
 	--disable-gpl \
 	--disable-nonfree \
@@ -135,7 +145,7 @@ cpuflags=
 	--enable-decoder=webvtt \
 	--enable-decoder=movtext \
 	--enable-decoder=eia_608 \
-	--enable-decoder=cea708 \	
+	--enable-decoder=cea708 \
 	\
 	--enable-demuxer=concat \
 	--enable-demuxer=data \
@@ -200,7 +210,7 @@ cpuflags=
 	--enable-parser=mpeg4 \
 	--enable-parser=mpeg4video \
 	--enable-parser=mpegvideo \
-    --enable-parser=eia_608 \	
+	--enable-parser=eia_608 \
 	\
 	--enable-parser=aac* \
 	--enable-parser=ac3 \
@@ -210,14 +220,13 @@ cpuflags=
 	--enable-parser=gsm \
 	--enable-parser=mpegaudio \
 	--enable-parser=tak \
- 	--enable-parser=dca \
 	\
 	--enable-filter=overlay \
 	--enable-filter=equalizer \
 	--enable-filter=aresample \
- 	--enable-filter=dynaudnorm \
- 	--enable-filter=loudnorm \
- 	--enable-filter=alimiter \
+	--enable-filter=dynaudnorm \
+	--enable-filter=loudnorm \
+	--enable-filter=alimiter \
 	\
 	--enable-protocol=async \
 	--enable-protocol=cache \
@@ -247,9 +256,9 @@ cpuflags=
 	\
 	--enable-network \
 	--enable-filter=subtitles \
-	--enable-filter=ass \
+	--enable-filter=ass
 
-make -j$cores
+make -j"$cores"
 make DESTDIR="$prefix_dir" install
 
 ln -sf "$prefix_dir"/lib/libswresample.so "$native_dir"
