@@ -32,7 +32,7 @@ cpuflags=
 	--disable-nonfree \
 	--enable-version3 \
 	--enable-static \
-	--disable-shared \
+	--disable-shared \	
 	--disable-vulkan \
 	--disable-iconv \
 	--disable-stripping \
