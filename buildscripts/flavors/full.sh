@@ -123,11 +123,11 @@ cpuflags=
 make -j$cores
 make DESTDIR="$prefix_dir" install
 
-ln -sf "$prefix_dir"/lib/libswresample.so "$native_dir"
-ln -sf "$prefix_dir"/lib/libpostproc.so "$native_dir"
-ln -sf "$prefix_dir"/lib/libavutil.so "$native_dir"
-ln -sf "$prefix_dir"/lib/libavcodec.so "$native_dir"
-ln -sf "$prefix_dir"/lib/libavformat.so "$native_dir"
-ln -sf "$prefix_dir"/lib/libswscale.so "$native_dir"
-ln -sf "$prefix_dir"/lib/libavfilter.so "$native_dir"
-ln -sf "$prefix_dir"/lib/libavdevice.so "$native_dir"
+install -Dm755 "$prefix_dir/lib/libswresample.so" "$native_dir/libswresample.so"
+install -Dm755 "$prefix_dir/lib/libpostproc.so"   "$native_dir/libpostproc.so"
+install -Dm755 "$prefix_dir/lib/libavutil.so"     "$native_dir/libavutil.so"
+install -Dm755 "$prefix_dir/lib/libavcodec.so"    "$native_dir/libavcodec.so"
+install -Dm755 "$prefix_dir/lib/libavformat.so"   "$native_dir/libavformat.so"
+install -Dm755 "$prefix_dir/lib/libswscale.so"    "$native_dir/libswscale.so"
+install -Dm755 "$prefix_dir/lib/libavfilter.so"   "$native_dir/libavfilter.so"
+install -Dm755 "$prefix_dir/lib/libavdevice.so"   "$native_dir/libavdevice.so"
