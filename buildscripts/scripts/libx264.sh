@@ -18,7 +18,7 @@ mkdir -p "$build"
 cd "$build"
 
 case "${CC%%-*}" in
-    armv7a)  x264_host=arm-linux ;;
+    armv7a)  x264_host=arm-linux-androideabi ;;
     aarch64) x264_host=aarch64-linux-android ;;
     i686)    x264_host=i686-linux-android ;;
     x86_64)  x264_host=x86_64-linux-android ;;
@@ -28,7 +28,7 @@ case "${CC%%-*}" in
         ;;
 esac
 
-sysroot="$($CC -print-sysroot)"
+sysroot="$toolchain/sysroot"
 
 CC="$CC" \
 CXX="$CXX" \
@@ -43,6 +43,6 @@ STRIP="${STRIP:-llvm-strip}" \
     --disable-cli \
     --enable-static \
     --enable-pic
-	
+
 make -j"$cores"
 make install
