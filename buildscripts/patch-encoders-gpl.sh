@@ -18,6 +18,7 @@ for dep_path in "${PATCHES[@]}"; do
             python3 - <<'PY'
 from pathlib import Path
 import sys
+import re
 
 meson = Path("meson.build")
 if not meson.exists():
@@ -42,14 +43,14 @@ if "libfftools_ffi]" not in text:
         sys.exit(1)
     text = text.replace(deps_old, deps_new, 1)
 
-src_old = "    'ta/ta_talloc.c',\n    'ta/ta_utils.c'\n)"
-src_new = "    'ta/ta_talloc.c',\n    'ta/ta_utils.c',\n\n    ## fftools-ffi hack\n    'fftools-ffi.c'\n)"
 if "'fftools-ffi.c'" not in text:
-    if src_old not in text:
+    pattern = r"('ta/ta_utils\.c',?\s*\n)(\s*\)\s*)"
+    repl = "\\1\n    ## fftools-ffi hack\n    'fftools-ffi.c',\n\\2"
+    text2, n = re.subn(pattern, repl, text, count=1)
+    if n == 0:
         print("source anchor not found", file=sys.stderr)
         sys.exit(1)
-    text = text.replace(src_old, src_new, 1)
-
+    text = text2
 meson.write_text(text)
 
 Path("fftools-ffi.c").write_text(
