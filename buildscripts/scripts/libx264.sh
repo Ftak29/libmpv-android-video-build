@@ -28,21 +28,21 @@ case "${CC%%-*}" in
         ;;
 esac
 
-sysroot="$($CC --print-sysroot)"
+sysroot="$($CC -print-sysroot)"
 
+CC="$CC" \
+CXX="$CXX" \
+AR="$AR" \
+AS="$AS" \
+RANLIB="$RANLIB" \
+STRIP="${STRIP:-llvm-strip}" \
 ../configure \
     --prefix="$prefix_dir" \
     --host="$x264_host" \
     --sysroot="$sysroot" \
     --disable-cli \
     --enable-static \
-    --enable-pic \
-    CC="$CC" \
-    CXX="$CXX" \
-    AR="$AR" \
-    AS="$AS" \
-    RANLIB="$RANLIB" \
-    STRIP="${STRIP:-llvm-strip}"
-
+    --enable-pic
+	
 make -j"$cores"
 make install
