@@ -3,10 +3,10 @@ set -euxo pipefail
 
 export ENCODERS_GPL=1
 
-if [ -d deps ]; then
+if [ -d "deps" ]; then
   sudo rm -r deps
 fi
-if [ -d prefix ]; then
+if [ -d "prefix" ]; then
   sudo rm -r prefix
 fi
 
