@@ -16,6 +16,16 @@ for dep_path in "${PATCHES[@]}"; do
             echo Applying $patch
             git apply "$ROOT/$patch"
         done
+
+        # 👇 ADD THIS BLOCK
+        git config user.email "ci@local"
+        git config user.name "ci"
+
+        if ! git diff --quiet; then
+            git add -A
+            git commit -m "Apply custom patches"
+        fi
+        
         cd $ROOT
     fi
 done
