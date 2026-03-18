@@ -1,5 +1,5 @@
 diff --git a/libavcodec/ccaption_dec.c b/libavcodec/ccaption_dec.c
-index 6f4d4fca41..c681f18075 100644
+index 6f4d4fca41..0000000000 100644
 --- a/libavcodec/ccaption_dec.c
 +++ b/libavcodec/ccaption_dec.c
 @@ -390,7 +390,8 @@ static int validate_cc_data_pair(const uint8_t *cc_data_pair, uint8_t *hi)
@@ -7,7 +7,7 @@ index 6f4d4fca41..c681f18075 100644
          }
          if (!av_parity(cc_data_pair[1])) {
 -            *hi = 0x7F;
-+            //*hi = 0x7F;
++            /* reject bad first byte instead of substituting garbage */
 +            return AVERROR_INVALIDDATA;
          }
      }
@@ -17,7 +17,7 @@ index 6f4d4fca41..c681f18075 100644
              x = ASS_DEFAULT_PLAYRESX * (0.1 + 0.0250 * j);
              y = ASS_DEFAULT_PLAYRESY * (0.1 + 0.0533 * i);
 -            av_bprintf(&ctx->buffer[bidx], "{\\an7}{\\pos(%d,%d)}", x, y);
-+            //av_bprintf(&ctx->buffer[bidx], "{\\an7}{\\pos(%d,%d)}", x, y);
++            /* use bottom-center alignment instead of explicit positioned top-left */
 +            av_bprintf(&ctx->buffer[bidx], "{\\an2}");
  
              for (; j < SCREEN_COLUMNS; j++) {
@@ -37,9 +37,9 @@ index 6f4d4fca41..c681f18075 100644
 -
 +        /*
 +         * Auto mode:
-+         *   prefer field 1 when valid, but still allow field 2 if explicitly selected.
++         *   prefer field 1 when valid.
 +         * Manual mode:
-+         *   respect selected field.
++         *   respect the explicitly selected field.
 +         */
 +        if (ctx->data_field >= 0) {
 +            if (cc_type != ctx->data_field)
@@ -47,8 +47,27 @@ index 6f4d4fca41..c681f18075 100644
 +        } else {
 +            if (cc_type != 0)
 +                continue;
-+        }       
-+        
++        }
++
          ret = process_cc608(ctx, hi & 0x7f, bptr[i + 2] & 0x7f);
+         if (ret < 0)
+             return ret;
+@@ -889,6 +899,7 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
+             if (!ctx->real_time)
+                 sub->end_display_time = av_rescale_q(end_time - start_time,
+                                                      AV_TIME_BASE_Q, ms_tb);
+             else
+                 sub->end_display_time = -1;
++            av_log(avctx, AV_LOG_INFO, "CC608:%s\n", ctx->buffer[bidx].str);
+             ret = ff_ass_add_rect2(sub, ctx->buffer[bidx].str, ctx->readorder++, 0, NULL, NULL, &nb_rect_allocated);
+             if (ret < 0)
+                 return ret;
+             ctx->last_real_time = sub->pts;
+@@ -914,6 +925,7 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
+         capture_screen(ctx);
+         ctx->buffer_changed = 0;
+ 
++        av_log(avctx, AV_LOG_INFO, "CC608:%s\n", ctx->buffer[bidx].str);
+         ret = ff_ass_add_rect2(sub, ctx->buffer[bidx].str, ctx->readorder++, 0, NULL, NULL, &nb_rect_allocated);
          if (ret < 0)
              return ret;
