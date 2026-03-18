@@ -12,9 +12,7 @@ fi
 
 # --------------------------------------------------
 
-if [ ! -f "scripts/ffmpeg" ]; then
-  rm scripts/ffmpeg.sh
-fi
+rm -f scripts/ffmpeg.sh
 cp flavors/default.sh scripts/ffmpeg.sh
 
 # --------------------------------------------------
@@ -33,7 +31,6 @@ unzip -q -o app/build/outputs/apk/release/app-release.apk -d app/build/outputs/a
 
 ln -sf "$(pwd)/app/build/outputs/apk/release/lib/arm64-v8a/libmediakitandroidhelper.so"   "../../../libmpv/src/main/jniLibs/arm64-v8a"
 ln -sf "$(pwd)/app/build/outputs/apk/release/lib/armeabi-v7a/libmediakitandroidhelper.so" "../../../libmpv/src/main/jniLibs/armeabi-v7a"
-ln -sf "$(pwd)/app/build/outputs/apk/release/lib/x86/libmediakitandroidhelper.so"         "../../../libmpv/src/main/jniLibs/x86"
 ln -sf "$(pwd)/app/build/outputs/apk/release/lib/x86_64/libmediakitandroidhelper.so"      "../../../libmpv/src/main/jniLibs/x86_64"
 
 cd ../..
@@ -66,7 +63,7 @@ cd build/app/outputs/apk/release/ || exit 1
 rm -r lib/*/libapp.so
 rm -r lib/*/libflutter.so
 
-# archs=("arm64-v8a" "armeabi-v7a" "x86" "x86_64")
+# archs=("arm64-v8a" "armeabi-v7a" "x86_64")
 # pairs=("aarch64-linux-android" "arm-linux-androideabi" "i686-linux-android" "x86_64-linux-android")
 
 # for i in "${!archs[@]}"; do
@@ -78,7 +75,6 @@ rm -r lib/*/libflutter.so
 
 zip -q -r "default-arm64-v8a.jar"                lib/arm64-v8a
 zip -q -r "default-armeabi-v7a.jar"              lib/armeabi-v7a
-zip -q -r "default-x86.jar"                      lib/x86
 zip -q -r "default-x86_64.jar"                   lib/x86_64
 
 mkdir -p ../../../../../../../../../../output
