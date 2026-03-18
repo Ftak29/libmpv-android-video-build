@@ -30,41 +30,49 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+
       - name: Setup Java JDK
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21
-          cache: 'gradle'
+
       - name: Setup Flutter SDK
         uses: subosito/flutter-action@v2
         with:
           channel: "stable"
-          cache: true
+          cache: false
+
+      - name: Clean generated outputs
+        run: |
+          rm -rf output
+          rm -rf buildscripts/sdk
+          find . -name "*.jar" -path "*/output/*" -delete || true
+          find . -type d -name build -prune -exec rm -rf {} +
+
       - name: Symlink SDK
         working-directory: ./buildscripts
         run: |
-          mkdir sdk
+          mkdir -p sdk
           ln -s ${ANDROID_HOME} ./sdk/android-sdk-linux
+
       - name: Bundle (default)
         working-directory: ./buildscripts
         run: |
-          sudo chmod +x bundle_default.sh
+          chmod +x bundle_default.sh
           ./bundle_default.sh
+
       - name: Bundle (full)
         working-directory: ./buildscripts
         run: |
-          sudo chmod +x bundle_full.sh
+          chmod +x bundle_full.sh
           ./bundle_full.sh
-      #- name: Bundle (encoders-gpl)
-      #  working-directory: ./buildscripts
-      #  run: |
-      #     sudo chmod +x bundle_encoders-gpl.sh
-      #     ./bundle_encoders-gpl.sh
+
       - uses: actions/upload-artifact@v4
         with:
           name: artifact
           path: ./output/*.jar
+
       - uses: softprops/action-gh-release@v1
         if: ${{ github.event.inputs.release == 'true' }}
         with:
