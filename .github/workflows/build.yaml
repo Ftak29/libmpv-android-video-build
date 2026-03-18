@@ -1,6 +1,10 @@
 name: Build libmpv-android
 
 on:
+  push:
+    branches:
+      - main
+  pull_request:
   workflow_dispatch:
     inputs:
       release:
