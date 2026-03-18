@@ -26,7 +26,7 @@ cpuflags=
 ../configure \
 	--target-os=android --enable-cross-compile --cross-prefix=$ndk_triple- --ar=$AR --cc=$CC --ranlib=$RANLIB \
 	--arch=${ndk_triple%%-*} --cpu=$cpu --pkg-config=pkg-config \
-	--extra-cflags="-I$prefix_dir/include $cpuflags" --extra-ldflags="$LDFLAGS -L$prefix_dir/lib" --extra-version=1.0 \
+	--extra-cflags="-I$prefix_dir/include $cpuflags" --extra-ldflags="$LDFLAGS -L$prefix_dir/lib" --extra-version=1.1 \
 	\
 	--disable-gpl \
 	--disable-nonfree \
