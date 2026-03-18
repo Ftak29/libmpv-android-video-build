@@ -17,7 +17,6 @@ builddir=$PWD
 abi=armeabi-v7a
 [[ "$ndk_triple" == "aarch64"* ]] && abi=arm64-v8a
 [[ "$ndk_triple" == "x86_64"* ]] && abi=x86_64
-[[ "$ndk_triple" == "i686"* ]] && abi=x86
 
 # build using the NDK's scripts, but keep object files in our build dir
 cd "$(dirname "$(which ndk-build)")/sources/third_party/shaderc"
