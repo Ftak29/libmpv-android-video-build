@@ -1,71 +1,17 @@
 diff --git a/libavcodec/ccaption_dec.c b/libavcodec/ccaption_dec.c
-index 6f4d4fca41..660ad8bbe7 100644
+index 6f4d4fca41..75407d0614 100644
 --- a/libavcodec/ccaption_dec.c
 +++ b/libavcodec/ccaption_dec.c
-@@ -390,7 +390,8 @@ static int validate_cc_data_pair(const uint8_t *cc_data_pair, uint8_t *hi)
-             return AVERROR_INVALIDDATA;
-         }
-         if (!av_parity(cc_data_pair[1])) {
--            *hi = 0x7F;
-+            //*hi = 0x7F;
-+            return AVERROR_INVALIDDATA;
-         }
-     }
- 
-@@ -500,7 +501,8 @@ static int capture_screen(CCaptionSubContext *ctx)
- 
-             x = ASS_DEFAULT_PLAYRESX * (0.1 + 0.0250 * j);
-             y = ASS_DEFAULT_PLAYRESY * (0.1 + 0.0533 * i);
--            av_bprintf(&ctx->buffer[bidx], "{\\an7}{\\pos(%d,%d)}", x, y);
-+            //av_bprintf(&ctx->buffer[bidx], "{\\an7}{\\pos(%d,%d)}", x, y);
-+            av_bprintf(&ctx->buffer[bidx], "{\\an2}");
- 
-             for (; j < SCREEN_COLUMNS; j++) {
-                 const char *e_tag = "", *s_tag = "", *c_tag = "", *b_tag = "";
-@@ -868,15 +870,23 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
+@@ -868,8 +868,10 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
      for (i = 0; i < len; i += 3) {
          uint8_t hi, cc_type = bptr[i] & 1;
  
 -        if (ctx->data_field < 0)
 -            ctx->data_field = cc_type;
--
++        av_log(avctx, AV_LOG_INFO, "CC608 RAW type=%d data=%02x %02x\n", cc_type, bptr[i + 1], bptr[i + 2]);
++
++        //if (ctx->data_field < 0)
++        //    ctx->data_field = cc_type;
+ 
          if (validate_cc_data_pair(bptr + i, &hi))
              continue;
- 
--        if (cc_type != ctx->data_field)
--            continue;
--
-+        /*
-+         * Auto mode:
-+         *   prefer field 1 when valid, but still allow field 2 if explicitly selected.
-+         * Manual mode:
-+         *   respect selected field.
-+         */
-+        if (ctx->data_field >= 0) {
-+            if (cc_type != ctx->data_field)
-+                continue;
-+        } else {
-+            if (cc_type != 0)
-+                continue;
-+        }       
-+        
-         ret = process_cc608(ctx, hi & 0x7f, bptr[i + 2] & 0x7f);
-         if (ret < 0)
-             return ret;
-@@ -900,6 +910,8 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
-                                                      AV_TIME_BASE_Q, ms_tb);
-             else
-                 sub->end_display_time = -1;
-+            
-+            av_log(avctx, AV_LOG_INFO, "CC608:%s\n", ctx->buffer[bidx].str);              
-             ret = ff_ass_add_rect2(sub, ctx->buffer[bidx].str, ctx->readorder++, 0, NULL, NULL, &nb_rect_allocated);
-             if (ret < 0)
-                 return ret;
-@@ -929,6 +941,7 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
-         capture_screen(ctx);
-         ctx->buffer_changed = 0;
- 
-+        av_log(avctx, AV_LOG_INFO, "CC608:%s\n", ctx->buffer[bidx].str);
-         ret = ff_ass_add_rect2(sub, ctx->buffer[bidx].str, ctx->readorder++, 0, NULL, NULL, &nb_rect_allocated);
-         if (ret < 0)
-             return ret;
