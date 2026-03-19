@@ -1,77 +1,81 @@
-#!/bin/bash
-set -e
+# --------------------------------------------------
 
-# Create Flutter plugin skeleton
+if [ -d "deps" ]; then
+  sudo rm -r deps
+fi
+if [ -d "prefix" ]; then
+  sudo rm -r prefix
+fi
+
+./download.sh
+./patch.sh
+
+# --------------------------------------------------
+
+rm -f scripts/ffmpeg.sh
+cp flavors/full.sh scripts/ffmpeg.sh
+
+# --------------------------------------------------
+
+./build.sh
+
+# --------------------------------------------------
+
+cd deps/media-kit-android-helper
+
+sudo chmod +x gradlew
+./gradlew assembleRelease
+
+unzip -o app/build/outputs/apk/release/app-release.apk -d app/build/outputs/apk/release
+
+ln -sf "$(pwd)/app/build/outputs/apk/release/lib/arm64-v8a/libmediakitandroidhelper.so" "../../../libmpv/src/main/jniLibs/arm64-v8a"
+ln -sf "$(pwd)/app/build/outputs/apk/release/lib/armeabi-v7a/libmediakitandroidhelper.so" "../../../libmpv/src/main/jniLibs/armeabi-v7a"
+ln -sf "$(pwd)/app/build/outputs/apk/release/lib/x86_64/libmediakitandroidhelper.so" "../../../libmpv/src/main/jniLibs/x86_64"
+
+cd ../..
+
+# --------------------------------------------------
+
+cd deps/media_kit/media_kit_native_event_loop
+
 flutter create --org com.alexmercerind --template plugin_ffi --platforms=android .
 
-# Force supported ABIs only
-python3 - <<'PY'
-from pathlib import Path
-
-files = [
-    Path("android/build.gradle"),
-    Path("android/build.gradle.kts"),
-    Path("example/android/app/build.gradle"),
-    Path("example/android/app/build.gradle.kts"),
-]
-
-for f in files:
-    if not f.exists():
-        continue
-
-    text = f.read_text()
-
-    if "abiFilters" in text:
-        continue
-
-    if f.suffix == ".kts":
-        if "android {" in text:
-            text = text.replace(
-                "android {",
-                """android {
-    defaultConfig {
-        ndk {
-            abiFilters += listOf("armeabi-v7a", "arm64-v8a", "x86_64")
-        }
-    }""",
-                1,
-            )
-    else:
-        if "android {" in text:
-            text = text.replace(
-                "android {",
-                """android {
-    defaultConfig {
-        ndk {
-            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'
-        }
-    }""",
-                1,
-            )
-
-    f.write_text(text)
-PY
-
-# Ensure Android FFI plugin section exists
-if ! grep -q "android:" pubspec.yaml; then
-  cat >> pubspec.yaml <<'EOF'
-    android:
-      ffiPlugin: true
-EOF
+if ! grep -q android "pubspec.yaml"; then
+  printf "      android:\n        ffiPlugin: true\n" >> pubspec.yaml
 fi
 
 flutter pub get
 
+#cp -a ../../mpv/libmpv/. src/include/
+cp -a ../../mpv/include/mpv/. src/include/
+
 cd example
-flutter pub get
-flutter build apk --release --target-platform android-arm,android-arm64,android-x64
-cd ..
 
-# Package built native libraries
-mkdir -p output
+flutter clean
+flutter build apk --release
 
-cd ../libmpv/src/main/jniLibs
-zip -q -r "../../../buildscripts/output/full-arm64-v8a.jar" arm64-v8a
-zip -q -r "../../../buildscripts/output/full-armeabi-v7a.jar" armeabi-v7a
-zip -q -r "../../../buildscripts/output/full-x86_64.jar" x86_64
-cd -
+unzip -o build/app/outputs/apk/release/app-release.apk -d build/app/outputs/apk/release
+
+cd build/app/outputs/apk/release/
+
+# --------------------------------------------------
+
+rm -r lib/*/libapp.so
+rm -r lib/*/libflutter.so
+
+zip -r "full-arm64-v8a.jar"                lib/arm64-v8a
+zip -r "full-armeabi-v7a.jar"              lib/armeabi-v7a
+zip -r "full-x86_64.jar"                   lib/x86_64
+
+mkdir -p ../../../../../../../../../../output
+
+cp *.jar ../../../../../../../../../../output
+
+md5sum *.jar
+
+cd ../../../../../../../../..
+
+# --------------------------------------------------
+
+zip -r debug-symbols-full.zip prefix/*/lib
+cp debug-symbols-full.zip ../output

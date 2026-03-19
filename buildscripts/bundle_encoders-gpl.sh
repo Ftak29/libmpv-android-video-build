@@ -56,7 +56,7 @@ cp -a ../../mpv/include/mpv/. src/include/
 cd example
 
 flutter clean
-flutter build apk --release --target-platform android-arm,android-arm64,android-x64
+flutter build apk --release
 
 unzip -o build/app/outputs/apk/release/app-release.apk -d build/app/outputs/apk/release
 

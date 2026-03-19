@@ -6,7 +6,7 @@ cd "$( dirname "${BASH_SOURCE[0]}" )"
 cleanbuild=0
 nodeps=0
 target=mpv
-archs=(armv7l arm64 x86_64)
+archs=(armv7l arm64 x86 x86_64)
 
 getdeps () {
 	varname="dep_${1//-/_}[*]"
@@ -29,6 +29,11 @@ loadarch () {
 		export ndk_triple=aarch64-linux-android
 		cc_triple=$ndk_triple$apilvl
 		prefix_name=arm64-v8a
+	elif [ "$1" == "x86" ]; then
+		export ndk_suffix=-x86
+		export ndk_triple=i686-linux-android
+		cc_triple=$ndk_triple$apilvl
+		prefix_name=x86
 	elif [ "$1" == "x86_64" ]; then
 		export ndk_suffix=-x64
 		export ndk_triple=x86_64-linux-android
@@ -118,7 +123,7 @@ usage () {
 		"Builds the specified target (default: $target)" \
 		"-n             Do not build dependencies" \
 		"--clean        Clean build dirs before compiling" \
-		"--arch <arch>  Build for specified architecture (supported: armv7l, arm64, x86_64)"
+		"--arch <arch>  Build for specified architecture (supported: armv7l, arm64, x86, x86_64)"
 	exit 0
 }
 

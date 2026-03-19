@@ -1,77 +1,90 @@
-#!/bin/bash
-set -e
+# --------------------------------------------------
 
-# Create Flutter plugin skeleton
+if [ -d "deps" ]; then
+  sudo rm -r deps
+fi
+if [ -d "prefix" ]; then
+  sudo rm -r prefix
+fi
+
+./download.sh || exit 1
+./patch.sh || exit 1
+
+# --------------------------------------------------
+
+rm -f scripts/ffmpeg.sh
+cp flavors/default.sh scripts/ffmpeg.sh
+
+# --------------------------------------------------
+
+./build.sh || exit 1
+
+# --------------------------------------------------
+
+echo "chdir media-kit-android-helpe"
+cd deps/media-kit-android-helper || exit 1
+
+sudo chmod +x gradlew
+./gradlew assembleRelease
+
+unzip -q -o app/build/outputs/apk/release/app-release.apk -d app/build/outputs/apk/release
+
+ln -sf "$(pwd)/app/build/outputs/apk/release/lib/arm64-v8a/libmediakitandroidhelper.so"   "../../../libmpv/src/main/jniLibs/arm64-v8a"
+ln -sf "$(pwd)/app/build/outputs/apk/release/lib/armeabi-v7a/libmediakitandroidhelper.so" "../../../libmpv/src/main/jniLibs/armeabi-v7a"
+ln -sf "$(pwd)/app/build/outputs/apk/release/lib/x86_64/libmediakitandroidhelper.so"      "../../../libmpv/src/main/jniLibs/x86_64"
+
+cd ../..
+
+# --------------------------------------------------
+
+cd deps/media_kit/media_kit_native_event_loop || exit 1
+
 flutter create --org com.alexmercerind --template plugin_ffi --platforms=android .
 
-# Force supported ABIs only
-python3 - <<'PY'
-from pathlib import Path
-
-files = [
-    Path("android/build.gradle"),
-    Path("android/build.gradle.kts"),
-    Path("example/android/app/build.gradle"),
-    Path("example/android/app/build.gradle.kts"),
-]
-
-for f in files:
-    if not f.exists():
-        continue
-
-    text = f.read_text()
-
-    if "abiFilters" in text:
-        continue
-
-    if f.suffix == ".kts":
-        if "android {" in text:
-            text = text.replace(
-                "android {",
-                """android {
-    defaultConfig {
-        ndk {
-            abiFilters += listOf("armeabi-v7a", "arm64-v8a", "x86_64")
-        }
-    }""",
-                1,
-            )
-    else:
-        if "android {" in text:
-            text = text.replace(
-                "android {",
-                """android {
-    defaultConfig {
-        ndk {
-            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'
-        }
-    }""",
-                1,
-            )
-
-    f.write_text(text)
-PY
-
-# Ensure Android FFI plugin section exists
-if ! grep -q "android:" pubspec.yaml; then
-  cat >> pubspec.yaml <<'EOF'
-    android:
-      ffiPlugin: true
-EOF
+if ! grep -q android "pubspec.yaml"; then
+  printf "      android:\n        ffiPlugin: true\n" >> pubspec.yaml
 fi
 
 flutter pub get
 
-cd example
-flutter pub get
-flutter build apk --release --target-platform android-arm,android-arm64,android-x64
-cd ..
+cp -a ../../mpv/include/mpv/. src/include/
 
-# Package built native libraries
-mkdir -p output
+cd example || exit 1
 
-cd ../libmpv/src/main/jniLibs
-zip -q -r "../../../buildscripts/output/default-arm64-v8a.jar" arm64-v8a
-zip -q -r "../../../buildscripts/output/default-armeabi-v7a.jar" armeabi-v7a
-zip -q -r "../../../buildscripts/output/default-x86_64.jar" x86_64
-cd -
+flutter clean
+flutter build apk --release
+
+unzip -q -o build/app/outputs/apk/release/app-release.apk -d build/app/outputs/apk/release
+
+cd build/app/outputs/apk/release/ || exit 1
+
+# --------------------------------------------------
+
+rm -r lib/*/libapp.so
+rm -r lib/*/libflutter.so
+
+# archs=("arm64-v8a" "armeabi-v7a" "x86_64")
+# pairs=("aarch64-linux-android" "arm-linux-androideabi" "i686-linux-android" "x86_64-linux-android")
+
+# for i in "${!archs[@]}"; do
+#     arch=${archs[$i]}
+#     pair=${pairs[$i]}
+#     cp ../../../../../../../../../prefix/${arch}/lib/{libsrt.so,libmbedcrypto.so,libmbedtls.so,libmbedx509.so} lib/${arch}
+#     cp ../../../../../../../../../sdk/android-sdk-linux/ndk/25.2.9519653/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/${pair}/libc++_shared.so lib/${arch}
+# done
+
+zip -q -r "default-arm64-v8a.jar"                lib/arm64-v8a
+zip -q -r "default-armeabi-v7a.jar"              lib/armeabi-v7a
+zip -q -r "default-x86_64.jar"                   lib/x86_64
+
+mkdir -p ../../../../../../../../../../output
+
+cp *.jar ../../../../../../../../../../output
+
+md5sum *.jar
+
+cd ../../../../../../../../..
+
+# --------------------------------------------------
+
+# zip -q -r debug-symbols-default.zip prefix/*/lib
