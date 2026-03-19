@@ -1,29 +1,30 @@
 diff --git a/libavcodec/ccaption_dec.c b/libavcodec/ccaption_dec.c
-index 6f4d4fca41..82826c099d 100644
+index 6f4d4fca41..de88eb1680 100644
 --- a/libavcodec/ccaption_dec.c
 +++ b/libavcodec/ccaption_dec.c
-@@ -31,7 +31,10 @@
+@@ -31,6 +31,12 @@
  #define SET_FLAG(var, val)   ( (var) |=   ( 1 << (val)) )
  #define UNSET_FLAG(var, val) ( (var) &=  ~( 1 << (val)) )
  #define CHECK_FLAG(var, val) ( (var) &    ( 1 << (val)) )
--
 +#ifdef __ANDROID__
 +#include <android/log.h>
-+#define CCLOGE(...) __android_log_print(ANDROID_LOG_ERROR, "CC608DBG", __VA_ARGS__)
++#define FFLOG(...) __android_log_print(ANDROID_LOG_ERROR, "FFMPEGTEST", __VA_ARGS__)
++#else
++#define FFLOG(...) do {} while (0)
 +#endif
+ 
  static const AVRational ms_tb = {1, 1000};
  
- enum cc_mode {
-@@ -279,6 +282,8 @@ typedef struct CCaptionSubContext {
+@@ -279,6 +285,8 @@ typedef struct CCaptionSubContext {
  
  static av_cold int init_decoder(AVCodecContext *avctx)
  {
-+    CCLOGE("CC608 init");
++    FFLOG("CC608 init");
 +  
      CCaptionSubContext *ctx = avctx->priv_data;
  
      ctx->logctx = avctx;
-@@ -390,7 +395,7 @@ static int validate_cc_data_pair(const uint8_t *cc_data_pair, uint8_t *hi)
+@@ -390,7 +398,7 @@ static int validate_cc_data_pair(const uint8_t *cc_data_pair, uint8_t *hi)
              return AVERROR_INVALIDDATA;
          }
          if (!av_parity(cc_data_pair[1])) {
@@ -32,7 +33,7 @@ index 6f4d4fca41..82826c099d 100644
          }
      }
  
-@@ -500,7 +505,7 @@ static int capture_screen(CCaptionSubContext *ctx)
+@@ -500,7 +508,7 @@ static int capture_screen(CCaptionSubContext *ctx)
  
              x = ASS_DEFAULT_PLAYRESX * (0.1 + 0.0250 * j);
              y = ASS_DEFAULT_PLAYRESY * (0.1 + 0.0533 * i);
@@ -41,16 +42,16 @@ index 6f4d4fca41..82826c099d 100644
  
              for (; j < SCREEN_COLUMNS; j++) {
                  const char *e_tag = "", *s_tag = "", *c_tag = "", *b_tag = "";
-@@ -854,6 +859,8 @@ static int process_cc608(CCaptionSubContext *ctx, uint8_t hi, uint8_t lo)
+@@ -854,6 +862,8 @@ static int process_cc608(CCaptionSubContext *ctx, uint8_t hi, uint8_t lo)
  static int decode(AVCodecContext *avctx, AVSubtitle *sub,
                    int *got_sub, const AVPacket *avpkt)
  {
-+    CCLOGE("CC608 decode() entered, size=%d", avpkt ? avpkt->size : -1);
++    FFLOG("CC608 decode() entered, size=%d", avpkt ? avpkt->size : -1);
 +    
      CCaptionSubContext *ctx = avctx->priv_data;
      int64_t in_time = sub->pts;
      int64_t start_time;
-@@ -868,15 +875,14 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
+@@ -868,15 +878,14 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
      for (i = 0; i < len; i += 3) {
          uint8_t hi, cc_type = bptr[i] & 1;
  
@@ -58,7 +59,7 @@ index 6f4d4fca41..82826c099d 100644
 -            ctx->data_field = cc_type;
 +        av_log(avctx, AV_LOG_ERROR, "CC608 RAW type=%d data=%02x %02x\n",
 +               cc_type, bptr[i + 1], bptr[i + 2]);
-+        CCLOGE("CC608 RAW type=%d data=%02x %02x", bptr[i] & 1, bptr[i + 1], bptr[i + 2]);               
++        FFLOG("CC608 RAW type=%d data=%02x %02x", bptr[i] & 1, bptr[i + 1], bptr[i + 2]);               
  
          if (validate_cc_data_pair(bptr + i, &hi))
              continue;
@@ -70,17 +71,17 @@ index 6f4d4fca41..82826c099d 100644
          ret = process_cc608(ctx, hi & 0x7f, bptr[i + 2] & 0x7f);
          if (ret < 0)
              return ret;
-@@ -891,6 +897,9 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
+@@ -891,6 +900,9 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
          update_time(ctx, in_time);
  
          if (ctx->buffer[bidx].str[0] || ctx->real_time) {
-+            CCLOGE("CC608 TEXT: %s", ctx->buffer[bidx].str);
++            FFLOG("CC608 TEXT: %s", ctx->buffer[bidx].str);
 +            av_log(avctx, AV_LOG_ERROR, "CC608:%s\n", ctx->buffer[bidx].str);
 +
              ff_dlog(avctx, "cdp writing data (%s)\n", ctx->buffer[bidx].str);
              start_time = ctx->buffer_time[0];
              sub->pts = start_time;
-@@ -906,8 +915,7 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
+@@ -906,8 +918,7 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
              ctx->last_real_time = sub->pts;
              ctx->screen_touched = 0;
          }
@@ -90,7 +91,7 @@ index 6f4d4fca41..82826c099d 100644
      if (!bptr && !ctx->real_time && ctx->buffer[!ctx->buffer_index].str[0]) {
          bidx = !ctx->buffer_index;
          ret = ff_ass_add_rect2(sub, ctx->buffer[bidx].str, ctx->readorder++, 0, NULL, NULL, &nb_rect_allocated);
-@@ -929,6 +937,7 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
+@@ -929,6 +940,7 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
          capture_screen(ctx);
          ctx->buffer_changed = 0;
  
@@ -99,10 +100,24 @@ index 6f4d4fca41..82826c099d 100644
          if (ret < 0)
              return ret;
 diff --git a/libavformat/demux.c b/libavformat/demux.c
-index 0527265328..b1e23a2b1b 100644
+index 0527265328..7b30cd5a5c 100644
 --- a/libavformat/demux.c
 +++ b/libavformat/demux.c
-@@ -214,9 +214,11 @@ static int update_stream_avctx(AVFormatContext *s)
+@@ -50,6 +50,13 @@
+ #include "internal.h"
+ #include "url.h"
+ 
++#ifdef __ANDROID__
++#include <android/log.h>
++#define FFLOG(...) __android_log_print(ANDROID_LOG_ERROR, "FFMPEGTEST", __VA_ARGS__)
++#else
++#define FFLOG(...) do {} while (0)
++#endif
++
+ static int64_t wrap_timestamp(const AVStream *st, int64_t timestamp)
+ {
+     const FFStream *const sti = cffstream(st);
+@@ -214,9 +221,11 @@ static int update_stream_avctx(AVFormatContext *s)
      return 0;
  }
  
@@ -110,7 +125,7 @@ index 0527265328..b1e23a2b1b 100644
  int avformat_open_input(AVFormatContext **ps, const char *filename,
                          const AVInputFormat *fmt, AVDictionary **options)
  {
-+    __android_log_print(ANDROID_LOG_ERROR, "CC608 FFMPEGTEST");
++    FFLOG("avformat_open_input entered");
      FormatContextInternal *fci;
      AVFormatContext *s = *ps;
      FFFormatContext *si;
