@@ -73,6 +73,8 @@ zip -r "full-x86_64.jar"                   lib/x86_64
 
 mkdir -p ../../../../../../../../../../output
 
+rm -f ../../../../../../../../../../output/full-*.jar
+
 cp *.jar ../../../../../../../../../../output
 
 md5sum *.jar
