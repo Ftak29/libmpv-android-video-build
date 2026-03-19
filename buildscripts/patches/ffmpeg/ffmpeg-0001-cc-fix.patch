@@ -98,3 +98,15 @@ index 6f4d4fca41..82826c099d 100644
          ret = ff_ass_add_rect2(sub, ctx->buffer[bidx].str, ctx->readorder++, 0, NULL, NULL, &nb_rect_allocated);
          if (ret < 0)
              return ret;
+diff --git a/libavformat/demux.c b/libavformat/demux.c
+index 0527265328..562cf22da3 100644
+--- a/libavformat/demux.c
++++ b/libavformat/demux.c
+@@ -217,6 +217,7 @@ static int update_stream_avctx(AVFormatContext *s)
+ int avformat_open_input(AVFormatContext **ps, const char *filename,
+                         const AVInputFormat *fmt, AVDictionary **options)
+ {
++    __android_log_print(ANDROID_LOG_ERROR, "CC608 FFMPEGTEST");
+     FormatContextInternal *fci;
+     AVFormatContext *s = *ps;
+     FFFormatContext *si;
