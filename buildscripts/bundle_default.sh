@@ -1,90 +1,64 @@
-# --------------------------------------------------
+#!/bin/bash
+set -e
 
-if [ -d "deps" ]; then
-  sudo rm -r deps
-fi
-if [ -d "prefix" ]; then
-  sudo rm -r prefix
-fi
+# Clean
+rm -rf lib
+mkdir -p lib
 
-./download.sh || exit 1
-./patch.sh || exit 1
+# Copy built libs
+cp -r ../libmpv/src/main/jniLibs/* lib/
 
-# --------------------------------------------------
-
-rm -f scripts/ffmpeg.sh
-cp flavors/default.sh scripts/ffmpeg.sh
-
-# --------------------------------------------------
-
-./build.sh || exit 1
-
-# --------------------------------------------------
-
-echo "chdir media-kit-android-helpe"
-cd deps/media-kit-android-helper || exit 1
-
-sudo chmod +x gradlew
-./gradlew assembleRelease
-
-unzip -q -o app/build/outputs/apk/release/app-release.apk -d app/build/outputs/apk/release
-
-ln -sf "$(pwd)/app/build/outputs/apk/release/lib/arm64-v8a/libmediakitandroidhelper.so"   "../../../libmpv/src/main/jniLibs/arm64-v8a"
-ln -sf "$(pwd)/app/build/outputs/apk/release/lib/armeabi-v7a/libmediakitandroidhelper.so" "../../../libmpv/src/main/jniLibs/armeabi-v7a"
-ln -sf "$(pwd)/app/build/outputs/apk/release/lib/x86_64/libmediakitandroidhelper.so"      "../../../libmpv/src/main/jniLibs/x86_64"
-
-cd ../..
-
-# --------------------------------------------------
-
-cd deps/media_kit/media_kit_native_event_loop || exit 1
-
+# Create Flutter plugin
 flutter create --org com.alexmercerind --template plugin_ffi --platforms=android .
 
+# 🔥 FORCE ABI FILTERS (THIS FIXES YOUR ERROR)
+python3 - <<'PY'
+from pathlib import Path
+
+files = [
+    Path("android/build.gradle"),
+    Path("example/android/app/build.gradle"),
+]
+
+snippet = """
+    defaultConfig {
+        ndk {
+            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'
+        }
+    }
+"""
+
+for f in files:
+    if not f.exists():
+        continue
+    text = f.read_text()
+    if "abiFilters" in text:
+        continue
+    if "android {" in text:
+        text = text.replace("android {", "android {" + snippet, 1)
+        f.write_text(text)
+PY
+
+# Ensure android plugin block
 if ! grep -q android "pubspec.yaml"; then
   printf "      android:\n        ffiPlugin: true\n" >> pubspec.yaml
 fi
 
 flutter pub get
 
-cp -a ../../mpv/include/mpv/. src/include/
+cd example
+flutter pub get
 
-cd example || exit 1
-
-flutter clean
+# ✅ ALSO restrict Flutter build
 flutter build apk --release --target-platform android-arm,android-arm64,android-x64
 
-unzip -q -o build/app/outputs/apk/release/app-release.apk -d build/app/outputs/apk/release
+cd ..
 
-cd build/app/outputs/apk/release/ || exit 1
+# Package outputs
+mkdir -p output
 
-# --------------------------------------------------
-
-rm -r lib/*/libapp.so
-rm -r lib/*/libflutter.so
-
-# archs=("arm64-v8a" "armeabi-v7a" "x86_64")
-# pairs=("aarch64-linux-android" "arm-linux-androideabi" "i686-linux-android" "x86_64-linux-android")
-
-# for i in "${!archs[@]}"; do
-#     arch=${archs[$i]}
-#     pair=${pairs[$i]}
-#     cp ../../../../../../../../../prefix/${arch}/lib/{libsrt.so,libmbedcrypto.so,libmbedtls.so,libmbedx509.so} lib/${arch}
-#     cp ../../../../../../../../../sdk/android-sdk-linux/ndk/25.2.9519653/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/${pair}/libc++_shared.so lib/${arch}
-# done
-
-zip -q -r "default-arm64-v8a.jar"                lib/arm64-v8a
-zip -q -r "default-armeabi-v7a.jar"              lib/armeabi-v7a
-zip -q -r "default-x86_64.jar"                   lib/x86_64
-
-mkdir -p ../../../../../../../../../../output
-
-cp *.jar ../../../../../../../../../../output
-
-md5sum *.jar
-
-cd ../../../../../../../../..
-
-# --------------------------------------------------
-
-# zip -q -r debug-symbols-default.zip prefix/*/lib
+cd lib
+zip -q -r "../output/default-arm64-v8a.jar" arm64-v8a
+zip -q -r "../output/default-armeabi-v7a.jar" armeabi-v7a
+zip -q -r "../output/default-x86_64.jar" x86_64
+cd ..
