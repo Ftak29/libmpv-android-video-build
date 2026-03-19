@@ -1,44 +1,40 @@
-# --------------------------------------------------
+#!/bin/bash
+set -e
 
-if [ -d "deps" ]; then
-  sudo rm -r deps
-fi
-if [ -d "prefix" ]; then
-  sudo rm -r prefix
-fi
+rm -rf lib
+mkdir -p lib
 
-./download.sh
-./patch.sh
-
-# --------------------------------------------------
-
-rm -f scripts/ffmpeg.sh
-cp flavors/full.sh scripts/ffmpeg.sh
-
-# --------------------------------------------------
-
-./build.sh
-
-# --------------------------------------------------
-
-cd deps/media-kit-android-helper
-
-sudo chmod +x gradlew
-./gradlew assembleRelease
-
-unzip -o app/build/outputs/apk/release/app-release.apk -d app/build/outputs/apk/release
-
-ln -sf "$(pwd)/app/build/outputs/apk/release/lib/arm64-v8a/libmediakitandroidhelper.so" "../../../libmpv/src/main/jniLibs/arm64-v8a"
-ln -sf "$(pwd)/app/build/outputs/apk/release/lib/armeabi-v7a/libmediakitandroidhelper.so" "../../../libmpv/src/main/jniLibs/armeabi-v7a"
-ln -sf "$(pwd)/app/build/outputs/apk/release/lib/x86_64/libmediakitandroidhelper.so" "../../../libmpv/src/main/jniLibs/x86_64"
-
-cd ../..
-
-# --------------------------------------------------
-
-cd deps/media_kit/media_kit_native_event_loop
+cp -r ../libmpv/src/main/jniLibs/* lib/
 
 flutter create --org com.alexmercerind --template plugin_ffi --platforms=android .
+
+# 🔥 SAME ABI FIX
+python3 - <<'PY'
+from pathlib import Path
+
+files = [
+    Path("android/build.gradle"),
+    Path("example/android/app/build.gradle"),
+]
+
+snippet = """
+    defaultConfig {
+        ndk {
+            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'
+        }
+    }
+"""
+
+for f in files:
+    if not f.exists():
+        continue
+    text = f.read_text()
+    if "abiFilters" in text:
+        continue
+    if "android {" in text:
+        text = text.replace("android {", "android {" + snippet, 1)
+        f.write_text(text)
+PY
 
 if ! grep -q android "pubspec.yaml"; then
   printf "      android:\n        ffiPlugin: true\n" >> pubspec.yaml
@@ -46,36 +42,17 @@ fi
 
 flutter pub get
 
-#cp -a ../../mpv/libmpv/. src/include/
-cp -a ../../mpv/include/mpv/. src/include/
-
 cd example
+flutter pub get
 
-flutter clean
 flutter build apk --release --target-platform android-arm,android-arm64,android-x64
 
-unzip -o build/app/outputs/apk/release/app-release.apk -d build/app/outputs/apk/release
+cd ..
 
-cd build/app/outputs/apk/release/
+mkdir -p output
 
-# --------------------------------------------------
-
-rm -r lib/*/libapp.so
-rm -r lib/*/libflutter.so
-
-zip -r "full-arm64-v8a.jar"                lib/arm64-v8a
-zip -r "full-armeabi-v7a.jar"              lib/armeabi-v7a
-zip -r "full-x86_64.jar"                   lib/x86_64
-
-mkdir -p ../../../../../../../../../../output
-
-cp *.jar ../../../../../../../../../../output
-
-md5sum *.jar
-
-cd ../../../../../../../../..
-
-# --------------------------------------------------
-
-zip -r debug-symbols-full.zip prefix/*/lib
-cp debug-symbols-full.zip ../output
+cd lib
+zip -q -r "../output/full-arm64-v8a.jar" arm64-v8a
+zip -q -r "../output/full-armeabi-v7a.jar" armeabi-v7a
+zip -q -r "../output/full-x86_64.jar" x86_64
+cd ..
