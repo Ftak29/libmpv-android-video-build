@@ -51,13 +51,7 @@ jobs:
         run: |
           mkdir -p sdk
           ln -s ${ANDROID_HOME} ./sdk/android-sdk-linux
-
-      - name: Bundle (default)
-        working-directory: ./buildscripts
-        run: |
-          chmod +x bundle_default.sh
-          ./bundle_default.sh
-          
+        
       - name: Bundle (full)
         working-directory: ./buildscripts
         run: |
