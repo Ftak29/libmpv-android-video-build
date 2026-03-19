@@ -1,64 +1,77 @@
 #!/bin/bash
 set -e
 
-# Clean
-rm -rf lib
-mkdir -p lib
-
-# Copy built libs
-cp -r ../libmpv/src/main/jniLibs/* lib/
-
-# Create Flutter plugin
+# Create Flutter plugin skeleton
 flutter create --org com.alexmercerind --template plugin_ffi --platforms=android .
 
-# 🔥 FORCE ABI FILTERS (THIS FIXES YOUR ERROR)
+# Force supported ABIs only
 python3 - <<'PY'
 from pathlib import Path
 
 files = [
     Path("android/build.gradle"),
+    Path("android/build.gradle.kts"),
     Path("example/android/app/build.gradle"),
+    Path("example/android/app/build.gradle.kts"),
 ]
-
-snippet = """
-    defaultConfig {
-        ndk {
-            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'
-        }
-    }
-"""
 
 for f in files:
     if not f.exists():
         continue
+
     text = f.read_text()
+
     if "abiFilters" in text:
         continue
-    if "android {" in text:
-        text = text.replace("android {", "android {" + snippet, 1)
-        f.write_text(text)
+
+    if f.suffix == ".kts":
+        if "android {" in text:
+            text = text.replace(
+                "android {",
+                """android {
+    defaultConfig {
+        ndk {
+            abiFilters += listOf("armeabi-v7a", "arm64-v8a", "x86_64")
+        }
+    }""",
+                1,
+            )
+    else:
+        if "android {" in text:
+            text = text.replace(
+                "android {",
+                """android {
+    defaultConfig {
+        ndk {
+            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'
+        }
+    }""",
+                1,
+            )
+
+    f.write_text(text)
 PY
 
-# Ensure android plugin block
-if ! grep -q android "pubspec.yaml"; then
-  printf "      android:\n        ffiPlugin: true\n" >> pubspec.yaml
+# Ensure Android FFI plugin section exists
+if ! grep -q "android:" pubspec.yaml; then
+  cat >> pubspec.yaml <<'EOF'
+    android:
+      ffiPlugin: true
+EOF
 fi
 
 flutter pub get
 
 cd example
 flutter pub get
-
-# ✅ ALSO restrict Flutter build
 flutter build apk --release --target-platform android-arm,android-arm64,android-x64
-
 cd ..
 
-# Package outputs
+# Package built native libraries
 mkdir -p output
 
-cd lib
-zip -q -r "../output/default-arm64-v8a.jar" arm64-v8a
-zip -q -r "../output/default-armeabi-v7a.jar" armeabi-v7a
-zip -q -r "../output/default-x86_64.jar" x86_64
-cd ..
+cd ../libmpv/src/main/jniLibs
+zip -q -r "../../../buildscripts/output/default-arm64-v8a.jar" arm64-v8a
+zip -q -r "../../../buildscripts/output/default-armeabi-v7a.jar" armeabi-v7a
+zip -q -r "../../../buildscripts/output/default-x86_64.jar" x86_64
+cd -
