@@ -1,4 +1,6 @@
 # --------------------------------------------------
+rm -rf ../libmpv/src/main/jniLibs/*
+mkdir -p ../libmpv/src/main/jniLibs
 
 if [ -d "deps" ]; then
   sudo rm -r deps
