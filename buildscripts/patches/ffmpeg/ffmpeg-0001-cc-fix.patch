@@ -1,3 +1,33 @@
+diff --git a/libavcodec/avcodec.c b/libavcodec/avcodec.c
+index 834b7ad242..e7ceb654a6 100644
+--- a/libavcodec/avcodec.c
++++ b/libavcodec/avcodec.c
+@@ -55,6 +55,13 @@
+  */
+ #define FF_MAX_EXTRADATA_SIZE ((1 << 28) - AV_INPUT_BUFFER_PADDING_SIZE)
+ 
++#ifdef __ANDROID__
++#include <android/log.h>
++#define AVCLOG(...) __android_log_print(ANDROID_LOG_ERROR, "AVCODECTEST", __VA_ARGS__)
++#else
++#define AVCLOG(...) do {} while (0)
++#endif
++
+ const SideDataMap ff_sd_global_map[] = {
+     { AV_PKT_DATA_REPLAYGAIN ,                AV_FRAME_DATA_REPLAYGAIN },
+     { AV_PKT_DATA_DISPLAYMATRIX,              AV_FRAME_DATA_DISPLAYMATRIX },
+@@ -143,6 +150,11 @@ static int64_t get_bit_rate(AVCodecContext *ctx)
+ 
+ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *codec, AVDictionary **options)
+ {
++      if (codec && codec->type == AVMEDIA_TYPE_SUBTITLE) {
++        AVCLOG("subtitle codec=%s id=%d",
++               codec->name ? codec->name : "null",
++               codec->id);
++    }
+     int ret = 0;
+     AVCodecInternal *avci;
+     const FFCodec *codec2;
 diff --git a/libavcodec/ccaption_dec.c b/libavcodec/ccaption_dec.c
 index 6f4d4fca41..de88eb1680 100644
 --- a/libavcodec/ccaption_dec.c
@@ -99,13 +129,13 @@ index 6f4d4fca41..de88eb1680 100644
          ret = ff_ass_add_rect2(sub, ctx->buffer[bidx].str, ctx->readorder++, 0, NULL, NULL, &nb_rect_allocated);
          if (ret < 0)
              return ret;
-diff --git a/libavformat/demux.c b/libavformat/demux.c
-index 0527265328..7b30cd5a5c 100644
---- a/libavformat/demux.c
-+++ b/libavformat/demux.c
+diff --git a/libavcodec/utils.c b/libavcodec/utils.c
+index cfa35d0e04..f835be98b8 100644
+--- a/libavcodec/utils.c
++++ b/libavcodec/utils.c
 @@ -50,6 +50,13 @@
- #include "internal.h"
- #include "url.h"
+ #include <stdlib.h>
+ #include <limits.h>
  
 +#ifdef __ANDROID__
 +#include <android/log.h>
@@ -114,18 +144,6 @@ index 0527265328..7b30cd5a5c 100644
 +#define FFLOG(...) do {} while (0)
 +#endif
 +
- static int64_t wrap_timestamp(const AVStream *st, int64_t timestamp)
+ void av_fast_padded_malloc(void *ptr, unsigned int *size, size_t min_size)
  {
-     const FFStream *const sti = cffstream(st);
-@@ -214,9 +221,11 @@ static int update_stream_avctx(AVFormatContext *s)
-     return 0;
- }
- 
-+#include <android/log.h>
- int avformat_open_input(AVFormatContext **ps, const char *filename,
-                         const AVInputFormat *fmt, AVDictionary **options)
- {
-+    FFLOG("avformat_open_input entered");
-     FormatContextInternal *fci;
-     AVFormatContext *s = *ps;
-     FFFormatContext *si;
+     uint8_t **p = ptr;
