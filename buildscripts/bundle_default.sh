@@ -83,6 +83,8 @@ zip -q -r "default-x86_64.jar"                   lib/x86_64
 
 mkdir -p ../../../../../../../../../../output
 
+rm -f ../../../../../../../../../../output/default-*.jar
+
 cp *.jar ../../../../../../../../../../output
 
 md5sum *.jar
