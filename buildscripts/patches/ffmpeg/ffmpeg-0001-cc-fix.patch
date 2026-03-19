@@ -99,10 +99,14 @@ index 6f4d4fca41..82826c099d 100644
          if (ret < 0)
              return ret;
 diff --git a/libavformat/demux.c b/libavformat/demux.c
-index 0527265328..562cf22da3 100644
+index 0527265328..b1e23a2b1b 100644
 --- a/libavformat/demux.c
 +++ b/libavformat/demux.c
-@@ -217,6 +217,7 @@ static int update_stream_avctx(AVFormatContext *s)
+@@ -214,9 +214,11 @@ static int update_stream_avctx(AVFormatContext *s)
+     return 0;
+ }
+ 
++#include <android/log.h>
  int avformat_open_input(AVFormatContext **ps, const char *filename,
                          const AVInputFormat *fmt, AVDictionary **options)
  {
