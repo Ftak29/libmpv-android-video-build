@@ -1,5 +1,5 @@
 diff --git a/app/src/main/cpp/native-lib.cpp b/app/src/main/cpp/native-lib.cpp
-index 978c6ad..f60e9b9 100644
+index 978c6ad..e4ebfad 100644
 --- a/app/src/main/cpp/native-lib.cpp
 +++ b/app/src/main/cpp/native-lib.cpp
 @@ -25,6 +25,8 @@ char* g_files_dir = NULL;
@@ -57,7 +57,7 @@ index 978c6ad..f60e9b9 100644
 +        if (attached) g_jvm->DetachCurrentThread();
 +        return;
 +    }
-+    __android_log_print(ANDROID_LOG_ERROR, "CC608HELPER after FindClass");
++    __android_log_print(ANDROID_LOG_ERROR, "CC608HELPER", after FindClass");
 +    
 +    jmethodID mid = env->GetStaticMethodID(
 +        cls,
@@ -69,10 +69,10 @@ index 978c6ad..f60e9b9 100644
 +        if (attached) g_jvm->DetachCurrentThread();
 +        return;
 +    }
-+    __android_log_print(ANDROID_LOG_ERROR, "CC608HELPER after GetStaticMethodID");
++    __android_log_print(ANDROID_LOG_ERROR, "CC608HELPER", "after GetStaticMethodID");
 +
 +    jstring value = env->NewStringUTF(text ? text : "");
-+    __android_log_print(ANDROID_LOG_ERROR, "CC608HELPER before CallStaticVoidMethod");
++    __android_log_print(ANDROID_LOG_ERROR, "CC608HELPER" , "before CallStaticVoidMethod");
 +    env->CallStaticVoidMethod(cls, mid, value);    
 +
 +
