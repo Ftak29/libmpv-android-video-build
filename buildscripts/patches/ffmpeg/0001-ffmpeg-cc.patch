@@ -137,3 +137,61 @@ index 9b6c766d87..fde209fe98 100644
      *got_sub = sub->num_rects > 0;
      return avpkt->size;
  }
+diff --git a/libavformat/demux.c b/libavformat/demux.c
+index a1909237f0..72f0045f50 100644
+--- a/libavformat/demux.c
++++ b/libavformat/demux.c
+@@ -50,6 +50,45 @@
+ #include "internal.h"
+ #include "url.h"
+ 
++#ifdef __ANDROID__
++#include <android/log.h>
++#define CCEMIT(...) __android_log_print(ANDROID_LOG_ERROR, "CC608EMIT", __VA_ARGS__)
++#else
++#define CCEMIT(...) do {} while (0)
++#endif
++
++#ifdef __ANDROID__
++#include <android/log.h>
++#endif
++
++#include <libavutil/log.h>
++#include <stdarg.h>
++#include <stdio.h>
++
++#ifdef __ANDROID__
++static void android_ffmpeg_log(void *ptr, int level, const char *fmt, va_list vl)
++{
++    if (level > av_log_get_level())
++        return;
++
++    char buffer[1024];
++    vsnprintf(buffer, sizeof(buffer), fmt, vl);
++    __android_log_print(ANDROID_LOG_ERROR, "FFMPEG", "%s", buffer);
++}
++#endif
++
++static void init_android_ffmpeg_logging_once(void)
++{
++#ifdef __ANDROID__
++    static int initialized = 0;
++    if (initialized)
++        return;
++    initialized = 1;
++
++    av_log_set_level(AV_LOG_TRACE);
++    av_log_set_callback(android_ffmpeg_log);
++#endif
++}
+ static int64_t wrap_timestamp(const AVStream *st, int64_t timestamp)
+ {
+     const FFStream *const sti = cffstream(st);
+@@ -231,6 +270,7 @@ static av_always_inline int is_id3v2_format(const AVInputFormat *fmt) {
+ int avformat_open_input(AVFormatContext **ps, const char *filename,
+                         const AVInputFormat *fmt, AVDictionary **options)
+ {
++    init_android_ffmpeg_logging_once();
+     FormatContextInternal *fci;
+     AVFormatContext *s = *ps;
+     FFFormatContext *si;
