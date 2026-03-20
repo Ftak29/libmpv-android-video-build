@@ -245,7 +245,6 @@ cpuflags=
 	--enable-encoder=png \
 	--enable-encoder=libwebp \
 	--enable-encoder=libwebp_anim \
-	--enable-libavcodec \
 	--enable-libavformat \
 	--enable-zimg \
 	--enable-libplacebo \
