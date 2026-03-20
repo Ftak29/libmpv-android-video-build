@@ -1,8 +1,16 @@
 diff --git a/libavcodec/ccaption_dec.c b/libavcodec/ccaption_dec.c
-index 6f4d4fca41..abce4617d6 100644
+index 9b6c766d87..abce4617d6 100644
 --- a/libavcodec/ccaption_dec.c
 +++ b/libavcodec/ccaption_dec.c
-@@ -277,6 +277,25 @@ typedef struct CCaptionSubContext {
+@@ -23,7 +23,6 @@
+ #include "avcodec.h"
+ #include "ass.h"
+ #include "codec_internal.h"
+-#include "libavutil/attributes.h"
+ #include "libavutil/opt.h"
+ 
+ #define SCREEN_ROWS 15
+@@ -278,6 +277,25 @@ typedef struct CCaptionSubContext {
      int readorder;
  } CCaptionSubContext;
  
@@ -28,7 +36,16 @@ index 6f4d4fca41..abce4617d6 100644
  static av_cold int init_decoder(AVCodecContext *avctx)
  {
      CCaptionSubContext *ctx = avctx->priv_data;
-@@ -390,7 +409,8 @@ static int validate_cc_data_pair(const uint8_t *cc_data_pair, uint8_t *hi)
+@@ -310,7 +328,7 @@ static av_cold int close_decoder(AVCodecContext *avctx)
+     return 0;
+ }
+ 
+-static av_cold void flush_decoder(AVCodecContext *avctx)
++static void flush_decoder(AVCodecContext *avctx)
+ {
+     CCaptionSubContext *ctx = avctx->priv_data;
+     ctx->screen[0].row_used = 0;
+@@ -391,7 +409,8 @@ static int validate_cc_data_pair(const uint8_t *cc_data_pair, uint8_t *hi)
              return AVERROR_INVALIDDATA;
          }
          if (!av_parity(cc_data_pair[1])) {
@@ -38,7 +55,7 @@ index 6f4d4fca41..abce4617d6 100644
          }
      }
  
-@@ -500,7 +520,8 @@ static int capture_screen(CCaptionSubContext *ctx)
+@@ -501,7 +520,8 @@ static int capture_screen(CCaptionSubContext *ctx)
  
              x = ASS_DEFAULT_PLAYRESX * (0.1 + 0.0250 * j);
              y = ASS_DEFAULT_PLAYRESY * (0.1 + 0.0533 * i);
@@ -48,7 +65,7 @@ index 6f4d4fca41..abce4617d6 100644
  
              for (; j < SCREEN_COLUMNS; j++) {
                  const char *e_tag = "", *s_tag = "", *c_tag = "", *b_tag = "";
-@@ -868,15 +889,23 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
+@@ -869,15 +889,23 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
      for (i = 0; i < len; i += 3) {
          uint8_t hi, cc_type = bptr[i] & 1;
  
@@ -78,7 +95,7 @@ index 6f4d4fca41..abce4617d6 100644
          ret = process_cc608(ctx, hi & 0x7f, bptr[i + 2] & 0x7f);
          if (ret < 0)
              return ret;
-@@ -891,6 +920,7 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
+@@ -892,6 +920,7 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
          update_time(ctx, in_time);
  
          if (ctx->buffer[bidx].str[0] || ctx->real_time) {
@@ -86,7 +103,7 @@ index 6f4d4fca41..abce4617d6 100644
              ff_dlog(avctx, "cdp writing data (%s)\n", ctx->buffer[bidx].str);
              start_time = ctx->buffer_time[0];
              sub->pts = start_time;
-@@ -927,6 +957,7 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
+@@ -928,6 +957,7 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
          ctx->screen_touched = 0;
  
          capture_screen(ctx);
@@ -94,7 +111,7 @@ index 6f4d4fca41..abce4617d6 100644
          ctx->buffer_changed = 0;
  
          ret = ff_ass_add_rect2(sub, ctx->buffer[bidx].str, ctx->readorder++, 0, NULL, NULL, &nb_rect_allocated);
-@@ -935,6 +966,9 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
+@@ -936,6 +966,9 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
          sub->end_display_time = -1;
      }
  
