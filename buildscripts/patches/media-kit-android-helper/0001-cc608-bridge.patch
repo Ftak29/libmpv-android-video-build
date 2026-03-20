@@ -1,0 +1,89 @@
+diff --git a/app/src/main/cpp/native-lib.cpp b/app/src/main/cpp/native-lib.cpp
+index 978c6ad..d3d08f2 100644
+--- a/app/src/main/cpp/native-lib.cpp
++++ b/app/src/main/cpp/native-lib.cpp
+@@ -25,6 +25,8 @@ char* g_files_dir = NULL;
+ int8_t g_is_emulator = -1;
+ AAssetManager* g_asset_manager = NULL;
+ jclass g_media_kit_android_helper_class = NULL;
++int8_t g_cc608_enabled = 0;
++int32_t g_cc608_track_id = -1;
+ 
+ // ------------------------------------------------------------
+ // Native. For access through Dart FFI.
+@@ -111,6 +113,75 @@ extern "C" __attribute__ ((visibility ("default"))) int32_t MediaKitAndroidHelpe
+     return android_get_device_api_level();
+ }
+ 
++extern "C" __attribute__ ((visibility ("default"))) void MediaKitAndroidHelperSetCc608Enabled(int8_t enabled) {
++    g_cc608_enabled = enabled ? 1 : 0;
++}
++
++extern "C" __attribute__ ((visibility ("default"))) void MediaKitAndroidHelperSetCc608TrackId(int32_t track_id) {
++    g_cc608_track_id = track_id;
++}
++
++extern "C" __attribute__ ((visibility ("default"))) int8_t MediaKitAndroidHelperGetCc608Enabled() {
++    return g_cc608_enabled;
++}
++
++extern "C" __attribute__ ((visibility ("default"))) int32_t MediaKitAndroidHelperGetCc608TrackId() {
++    return g_cc608_track_id;
++}
++
++extern "C" __attribute__ ((visibility ("default"))) void MediaKitAndroidHelperEmitCc608Text(const char* text) {
++    __android_log_print(ANDROID_LOG_ERROR, "CC608HELPER", "emit text='%s'", text ? text : "");
++    if (g_jvm == NULL) {
++        __android_log_print(ANDROID_LOG_DEBUG, "media_kit", "MediaKitAndroidHelperEmitCc608Text: g_jvm == NULL");
++        return;
++    }
++
++    JNIEnv* env = NULL;
++    bool attached = false;
++
++    jint get_env_result = g_jvm->GetEnv((void**)&env, JNI_VERSION_1_6);
++    if (get_env_result != JNI_OK) {
++        if (g_jvm->AttachCurrentThread(&env, NULL) == JNI_OK) {
++            attached = true;
++        } else {
++            __android_log_print(ANDROID_LOG_DEBUG, "media_kit", "MediaKitAndroidHelperEmitCc608Text: AttachCurrentThread failed");
++            return;
++        }
++    }
++
++    jclass cls = env->FindClass("com/tvezplayer/cc608_bridge/Cc608BridgePlugin");
++    if (cls == NULL) {
++        __android_log_print(ANDROID_LOG_DEBUG, "media_kit", "MediaKitAndroidHelperEmitCc608Text: MPVLib class not found");
++        if (attached) g_jvm->DetachCurrentThread();
++        return;
++    }
++    __android_log_print(ANDROID_LOG_ERROR, "CC608HELPER", "after FindClass");
++    
++    jmethodID mid = env->GetStaticMethodID(
++        cls,
++        "emit",
++        "(Ljava/lang/String;)V"
++    );    
++    if (mid == NULL) {
++        __android_log_print(ANDROID_LOG_DEBUG, "media_kit", "MediaKitAndroidHelperEmitCc608Text: eventProperty(String,String) not found");
++        if (attached) g_jvm->DetachCurrentThread();
++        return;
++    }
++    __android_log_print(ANDROID_LOG_ERROR, "CC608HELPER", "after GetStaticMethodID");
++
++    jstring value = env->NewStringUTF(text ? text : "");
++    __android_log_print(ANDROID_LOG_ERROR, "CC608HELPER" , "before CallStaticVoidMethod");
++    env->CallStaticVoidMethod(cls, mid, value);    
++
++
++    env->DeleteLocalRef(value);
++    env->DeleteLocalRef(cls);
++
++    if (attached) {
++        g_jvm->DetachCurrentThread();
++    }
++}
++
+ extern "C" __attribute__ ((visibility ("default"))) int32_t MediaKitAndroidHelperOpenFileDescriptor(const char* uri) {
+     auto file_descriptor_promise = std::promise<int32_t>{};
+     std::thread([&] () {
