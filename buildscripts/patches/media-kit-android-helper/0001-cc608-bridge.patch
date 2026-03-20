@@ -1,5 +1,5 @@
 diff --git a/app/src/main/cpp/native-lib.cpp b/app/src/main/cpp/native-lib.cpp
-index 978c6ad..c560104 100644
+index 978c6ad..2897f56 100644
 --- a/app/src/main/cpp/native-lib.cpp
 +++ b/app/src/main/cpp/native-lib.cpp
 @@ -25,6 +25,8 @@ char* g_files_dir = NULL;
@@ -11,7 +11,7 @@ index 978c6ad..c560104 100644
  
  // ------------------------------------------------------------
  // Native. For access through Dart FFI.
-@@ -111,6 +113,73 @@ extern "C" __attribute__ ((visibility ("default"))) int32_t MediaKitAndroidHelpe
+@@ -111,6 +113,71 @@ extern "C" __attribute__ ((visibility ("default"))) int32_t MediaKitAndroidHelpe
      return android_get_device_api_level();
  }
  
@@ -50,7 +50,7 @@ index 978c6ad..c560104 100644
 +        }
 +    }
 +
-+    jclass cls = env->FindClass("dev/jdtech/mpv/MPVLib");
++    jclass cls = env->FindClass("com/tvezplayer/cc608_bridge/Cc608BridgePlugin");
 +    if (cls == NULL) {
 +        __android_log_print(ANDROID_LOG_DEBUG, "media_kit", "MediaKitAndroidHelperEmitCc608Text: MPVLib class not found");
 +        if (attached) g_jvm->DetachCurrentThread();
@@ -59,8 +59,8 @@ index 978c6ad..c560104 100644
 +
 +    jmethodID mid = env->GetStaticMethodID(
 +        cls,
-+        "eventProperty",
-+        "(Ljava/lang/String;Ljava/lang/String;)V"
++        "emit",
++        "(Ljava/lang/String;)V"
 +    );
 +    if (mid == NULL) {
 +        __android_log_print(ANDROID_LOG_DEBUG, "media_kit", "MediaKitAndroidHelperEmitCc608Text: eventProperty(String,String) not found");
@@ -68,12 +68,10 @@ index 978c6ad..c560104 100644
 +        return;
 +    }
 +
-+    jstring property = env->NewStringUTF("cc608-text");
 +    jstring value = env->NewStringUTF(text ? text : "");
++    env->CallStaticVoidMethod(cls, mid, value);    
 +
-+    env->CallStaticVoidMethod(cls, mid, property, value);
 +
-+    env->DeleteLocalRef(property);
 +    env->DeleteLocalRef(value);
 +    env->DeleteLocalRef(cls);
 +
