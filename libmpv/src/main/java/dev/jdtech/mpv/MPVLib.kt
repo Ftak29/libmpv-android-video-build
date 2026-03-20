@@ -33,6 +33,9 @@ object MPVLib {
     external fun getPropertyString(property: String): String?
     external fun setPropertyString(property: String, value: String)
 
+    external fun setCc608Enabled(enabled: Boolean)
+    external fun setCc608TrackId(trackId: Int)    
+
     external fun observeProperty(property: String, format: Int)
 
     private val observers = mutableListOf<EventObserver>()
