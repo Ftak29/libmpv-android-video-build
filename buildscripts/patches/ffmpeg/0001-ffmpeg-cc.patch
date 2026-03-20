@@ -1,5 +1,5 @@
 diff --git a/libavcodec/ccaption_dec.c b/libavcodec/ccaption_dec.c
-index 9b6c766d87..abce4617d6 100644
+index 9b6c766d87..fde209fe98 100644
 --- a/libavcodec/ccaption_dec.c
 +++ b/libavcodec/ccaption_dec.c
 @@ -23,7 +23,6 @@
@@ -10,7 +10,21 @@ index 9b6c766d87..abce4617d6 100644
  #include "libavutil/opt.h"
  
  #define SCREEN_ROWS 15
-@@ -278,6 +277,25 @@ typedef struct CCaptionSubContext {
+@@ -33,6 +32,13 @@
+ #define UNSET_FLAG(var, val) ( (var) &=  ~( 1 << (val)) )
+ #define CHECK_FLAG(var, val) ( (var) &    ( 1 << (val)) )
+ 
++#ifdef __ANDROID__
++#include <android/log.h>
++#define CCEMIT(...) __android_log_print(ANDROID_LOG_ERROR, "CC608EMIT", __VA_ARGS__)
++#else
++#define CCEMIT(...) do {} while (0)
++#endif
++
+ static const AVRational ms_tb = {1, 1000};
+ 
+ enum cc_mode {
+@@ -278,6 +284,27 @@ typedef struct CCaptionSubContext {
      int readorder;
  } CCaptionSubContext;
  
@@ -22,6 +36,7 @@ index 9b6c766d87..abce4617d6 100644
 +
 +static void emit_cc608_if_changed(const char *text)
 +{
++    CCEMIT("emit_cc608_if_changed enabled=%d text='%s'",  cc608_android_is_enabled(),  text ? text : "");
 +    if (!cc608_android_is_enabled())
 +        return;
 +
@@ -30,13 +45,14 @@ index 9b6c766d87..abce4617d6 100644
 +        return;
 +
 +    av_strlcpy(g_last_cc608_text, s, sizeof(g_last_cc608_text));
++    CCEMIT("calling cc608_android_emit_text");
 +    cc608_android_emit_text(s);
 +}
 +
  static av_cold int init_decoder(AVCodecContext *avctx)
  {
      CCaptionSubContext *ctx = avctx->priv_data;
-@@ -310,7 +328,7 @@ static av_cold int close_decoder(AVCodecContext *avctx)
+@@ -310,7 +337,7 @@ static av_cold int close_decoder(AVCodecContext *avctx)
      return 0;
  }
  
@@ -45,7 +61,7 @@ index 9b6c766d87..abce4617d6 100644
  {
      CCaptionSubContext *ctx = avctx->priv_data;
      ctx->screen[0].row_used = 0;
-@@ -391,7 +409,8 @@ static int validate_cc_data_pair(const uint8_t *cc_data_pair, uint8_t *hi)
+@@ -391,7 +418,8 @@ static int validate_cc_data_pair(const uint8_t *cc_data_pair, uint8_t *hi)
              return AVERROR_INVALIDDATA;
          }
          if (!av_parity(cc_data_pair[1])) {
@@ -55,7 +71,7 @@ index 9b6c766d87..abce4617d6 100644
          }
      }
  
-@@ -501,7 +520,8 @@ static int capture_screen(CCaptionSubContext *ctx)
+@@ -501,7 +529,8 @@ static int capture_screen(CCaptionSubContext *ctx)
  
              x = ASS_DEFAULT_PLAYRESX * (0.1 + 0.0250 * j);
              y = ASS_DEFAULT_PLAYRESY * (0.1 + 0.0533 * i);
@@ -65,7 +81,7 @@ index 9b6c766d87..abce4617d6 100644
  
              for (; j < SCREEN_COLUMNS; j++) {
                  const char *e_tag = "", *s_tag = "", *c_tag = "", *b_tag = "";
-@@ -869,15 +889,23 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
+@@ -869,15 +898,23 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
      for (i = 0; i < len; i += 3) {
          uint8_t hi, cc_type = bptr[i] & 1;
  
@@ -95,7 +111,7 @@ index 9b6c766d87..abce4617d6 100644
          ret = process_cc608(ctx, hi & 0x7f, bptr[i + 2] & 0x7f);
          if (ret < 0)
              return ret;
-@@ -892,6 +920,7 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
+@@ -892,6 +929,7 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
          update_time(ctx, in_time);
  
          if (ctx->buffer[bidx].str[0] || ctx->real_time) {
@@ -103,7 +119,7 @@ index 9b6c766d87..abce4617d6 100644
              ff_dlog(avctx, "cdp writing data (%s)\n", ctx->buffer[bidx].str);
              start_time = ctx->buffer_time[0];
              sub->pts = start_time;
-@@ -928,6 +957,7 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
+@@ -928,6 +966,7 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
          ctx->screen_touched = 0;
  
          capture_screen(ctx);
@@ -111,7 +127,7 @@ index 9b6c766d87..abce4617d6 100644
          ctx->buffer_changed = 0;
  
          ret = ff_ass_add_rect2(sub, ctx->buffer[bidx].str, ctx->readorder++, 0, NULL, NULL, &nb_rect_allocated);
-@@ -936,6 +966,9 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
+@@ -936,6 +975,9 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
          sub->end_display_time = -1;
      }
  
