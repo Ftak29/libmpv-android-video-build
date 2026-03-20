@@ -40,7 +40,6 @@ cpuflags=
 	--disable-muxers \
 	--disable-decoders \
 	--disable-encoders \
-	--disable-demuxers \
 	--disable-parsers \
 	--disable-protocols \
 	--disable-devices \
@@ -246,6 +245,10 @@ cpuflags=
 	--enable-encoder=png \
 	--enable-encoder=libwebp \
 	--enable-encoder=libwebp_anim \
+	--enable-libavcodec \
+	--enable-libavformat \
+	--enable-zimg \
+	--enable-libplacebo \
 	\
 	--enable-network \
 
