@@ -1,5 +1,5 @@
 diff --git a/app/src/main/cpp/native-lib.cpp b/app/src/main/cpp/native-lib.cpp
-index 978c6ad..2897f56 100644
+index 978c6ad..f60e9b9 100644
 --- a/app/src/main/cpp/native-lib.cpp
 +++ b/app/src/main/cpp/native-lib.cpp
 @@ -25,6 +25,8 @@ char* g_files_dir = NULL;
@@ -11,7 +11,7 @@ index 978c6ad..2897f56 100644
  
  // ------------------------------------------------------------
  // Native. For access through Dart FFI.
-@@ -111,6 +113,71 @@ extern "C" __attribute__ ((visibility ("default"))) int32_t MediaKitAndroidHelpe
+@@ -111,6 +113,75 @@ extern "C" __attribute__ ((visibility ("default"))) int32_t MediaKitAndroidHelpe
      return android_get_device_api_level();
  }
  
@@ -32,6 +32,7 @@ index 978c6ad..2897f56 100644
 +}
 +
 +extern "C" __attribute__ ((visibility ("default"))) void MediaKitAndroidHelperEmitCc608Text(const char* text) {
++    __android_log_print(ANDROID_LOG_ERROR, "CC608HELPER", "emit text='%s'", text ? text : "");
 +    if (g_jvm == NULL) {
 +        __android_log_print(ANDROID_LOG_DEBUG, "media_kit", "MediaKitAndroidHelperEmitCc608Text: g_jvm == NULL");
 +        return;
@@ -56,19 +57,22 @@ index 978c6ad..2897f56 100644
 +        if (attached) g_jvm->DetachCurrentThread();
 +        return;
 +    }
-+
++    __android_log_print(ANDROID_LOG_ERROR, "CC608HELPER after FindClass");
++    
 +    jmethodID mid = env->GetStaticMethodID(
 +        cls,
 +        "emit",
 +        "(Ljava/lang/String;)V"
-+    );
++    );    
 +    if (mid == NULL) {
 +        __android_log_print(ANDROID_LOG_DEBUG, "media_kit", "MediaKitAndroidHelperEmitCc608Text: eventProperty(String,String) not found");
 +        if (attached) g_jvm->DetachCurrentThread();
 +        return;
 +    }
++    __android_log_print(ANDROID_LOG_ERROR, "CC608HELPER after GetStaticMethodID");
 +
 +    jstring value = env->NewStringUTF(text ? text : "");
++    __android_log_print(ANDROID_LOG_ERROR, "CC608HELPER before CallStaticVoidMethod");
 +    env->CallStaticVoidMethod(cls, mid, value);    
 +
 +
