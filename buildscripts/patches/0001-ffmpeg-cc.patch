@@ -1,0 +1,123 @@
+diff --git a/libavcodec/ccaption_dec.c b/libavcodec/ccaption_dec.c
+index 9b6c766d87..8251b1a556 100644
+--- a/libavcodec/ccaption_dec.c
++++ b/libavcodec/ccaption_dec.c
+@@ -33,6 +33,13 @@
+ #define UNSET_FLAG(var, val) ( (var) &=  ~( 1 << (val)) )
+ #define CHECK_FLAG(var, val) ( (var) &    ( 1 << (val)) )
+ 
++#ifdef __ANDROID__
++#include <android/log.h>
++#define CCLOG(...) __android_log_print(ANDROID_LOG_ERROR, "CC608Log", __VA_ARGS__)
++#else
++#define CCLOG(...) do {} while (0)
++#endif
++
+ static const AVRational ms_tb = {1, 1000};
+ 
+ enum cc_mode {
+@@ -278,8 +285,32 @@ typedef struct CCaptionSubContext {
+     int readorder;
+ } CCaptionSubContext;
+ 
++
++extern int cc608_android_is_enabled(void);
++extern int cc608_android_selected_track_id(void);
++extern void cc608_android_emit_text(const char *text);
++
++static char g_last_cc608_text[2048];
++
++static void emit_cc608_if_changed(const char *text)
++{
++    CCEMIT("emit_cc608_if_changed enabled=%d text='%s'",  cc608_android_is_enabled(),  text ? text : "");
++    if (!cc608_android_is_enabled())
++        return;
++
++    const char *s = text ? text : "";
++    if (strcmp(g_last_cc608_text, s) == 0)
++        return;
++
++    av_strlcpy(g_last_cc608_text, s, sizeof(g_last_cc608_text));
++    CCEMIT("calling cc608_android_emit_text");
++    cc608_android_emit_text(s);
++}
++
++
+ static av_cold int init_decoder(AVCodecContext *avctx)
+ {
++    CCEMIT("emit_cc608_if_changedinit_decoder");
+     CCaptionSubContext *ctx = avctx->priv_data;
+ 
+     ctx->logctx = avctx;
+@@ -391,7 +422,8 @@ static int validate_cc_data_pair(const uint8_t *cc_data_pair, uint8_t *hi)
+             return AVERROR_INVALIDDATA;
+         }
+         if (!av_parity(cc_data_pair[1])) {
+-            *hi = 0x7F;
++            //*hi = 0x7F;
++            return AVERROR_INVALIDDATA;
+         }
+     }
+ 
+@@ -501,7 +533,8 @@ static int capture_screen(CCaptionSubContext *ctx)
+ 
+             x = ASS_DEFAULT_PLAYRESX * (0.1 + 0.0250 * j);
+             y = ASS_DEFAULT_PLAYRESY * (0.1 + 0.0533 * i);
+-            av_bprintf(&ctx->buffer[bidx], "{\\an7}{\\pos(%d,%d)}", x, y);
++            //av_bprintf(&ctx->buffer[bidx], "{\\an7}{\\pos(%d,%d)}", x, y);
++            av_bprintf(&ctx->buffer[bidx], "{\\an2}");
+ 
+             for (; j < SCREEN_COLUMNS; j++) {
+                 const char *e_tag = "", *s_tag = "", *c_tag = "", *b_tag = "";
+@@ -875,8 +908,23 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
+         if (validate_cc_data_pair(bptr + i, &hi))
+             continue;
+ 
+-        if (cc_type != ctx->data_field)
+-            continue;
++        //if (cc_type != ctx->data_field)
++        //    continue;
++
++        /*
++         * Auto mode:
++         *   prefer field 1 when valid, but still allow field 2 if explicitly selected.
++         * Manual mode:
++         *   respect selected field.
++         */
++        if (ctx->data_field >= 0) {
++            if (cc_type != ctx->data_field)
++                continue;
++        } else {
++            if (cc_type != 0)
++                continue;
++        }       
++    
+ 
+         ret = process_cc608(ctx, hi & 0x7f, bptr[i + 2] & 0x7f);
+         if (ret < 0)
+@@ -892,6 +940,7 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
+         update_time(ctx, in_time);
+ 
+         if (ctx->buffer[bidx].str[0] || ctx->real_time) {
++            emit_cc608_if_changed(ctx->buffer[bidx].str);
+             ff_dlog(avctx, "cdp writing data (%s)\n", ctx->buffer[bidx].str);
+             start_time = ctx->buffer_time[0];
+             sub->pts = start_time;
+@@ -928,6 +977,7 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
+         ctx->screen_touched = 0;
+ 
+         capture_screen(ctx);
++        emit_cc608_if_changed(ctx->buffer[bidx].str);
+         ctx->buffer_changed = 0;
+ 
+         ret = ff_ass_add_rect2(sub, ctx->buffer[bidx].str, ctx->readorder++, 0, NULL, NULL, &nb_rect_allocated);
+@@ -936,6 +986,9 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
+         sub->end_display_time = -1;
+     }
+ 
++    if (!ctx->buffer[0].str[0] && !ctx->buffer[1].str[0] && !ctx->real_time) {
++        emit_cc608_if_changed("");
++    }
+     *got_sub = sub->num_rects > 0;
+     return avpkt->size;
+ }
