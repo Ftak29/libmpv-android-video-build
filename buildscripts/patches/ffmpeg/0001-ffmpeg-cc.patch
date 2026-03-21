@@ -57,7 +57,7 @@ index 5020684a28..ebc06b8cf0 100644
                 av_err2str(ret));
          return ret;
 diff --git a/libavcodec/avcodec.c b/libavcodec/avcodec.c
-index 9ff4c7f319..0c38d9a2db 100644
+index 9ff4c7f319..132f8edd9a 100644
 --- a/libavcodec/avcodec.c
 +++ b/libavcodec/avcodec.c
 @@ -54,6 +54,13 @@
@@ -74,11 +74,15 @@ index 9ff4c7f319..0c38d9a2db 100644
  const SideDataMap ff_sd_global_map[] = {
      { AV_PKT_DATA_REPLAYGAIN ,                AV_FRAME_DATA_REPLAYGAIN },
      { AV_PKT_DATA_DISPLAYMATRIX,              AV_FRAME_DATA_DISPLAYMATRIX },
-@@ -151,11 +158,14 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
+@@ -151,11 +158,18 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
      if (avcodec_is_open(avctx))
          return 0;
  
-+    CCEMIT("ABC7");
++    CCEMIT("ABC7 OPEN codec=%s id=%d type=%d active_thread_type=%d",
++       codec ? codec->name : (avctx->codec ? avctx->codec->name : "null"),
++       codec ? codec->id : avctx->codec_id,
++       codec ? codec->type : avctx->codec_type,
++       avctx->active_thread_type);    
      if (!codec && !avctx->codec) {
 +        CCEMIT("ABC8");
          av_log(avctx, AV_LOG_ERROR, "No codec provided to avcodec_open2()\n");
@@ -89,6 +93,41 @@ index 9ff4c7f319..0c38d9a2db 100644
          av_log(avctx, AV_LOG_ERROR, "This AVCodecContext was allocated for %s, "
                                      "but %s passed to avcodec_open2()\n", avctx->codec->name, codec->name);
          return AVERROR(EINVAL);
+@@ -325,6 +339,15 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
+     if (HAVE_THREADS && !avci->frame_thread_encoder) {
+         /* Frame-threaded decoders call FFCodec.init for their child contexts. */
+         lock_avcodec(codec2);
++        
++        CCEMIT("ABC PRE ff_thread_init codec=%s active_thread_type=%d",  codec->name, avctx->active_thread_type);
++
++        ret = ff_thread_init(avctx);
++
++        CCEMIT("ABC POST ff_thread_init codec=%s active_thread_type=%d ret=%d",
++        
++       codec->name, avctx->active_thread_type, ret);
++       
+         ret = ff_thread_init(avctx);
+         unlock_avcodec(codec2);
+         if (ret < 0) {
+@@ -336,14 +359,18 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
+ 
+     if (!(avctx->active_thread_type & FF_THREAD_FRAME) ||
+         avci->frame_thread_encoder) {
++        CCEMIT("ABC CALL init codec=%s", codec->name);
+         if (codec2->init) {
+             lock_avcodec(codec2);
+             ret = codec2->init(avctx);
++            CCEMIT("ABC RET init codec=%s ret=%d", codec->name, ret);
+             unlock_avcodec(codec2);
+             if (ret < 0) {
+                 avci->needs_close = codec2->caps_internal & FF_CODEC_CAP_INIT_CLEANUP;
+                 goto free_and_end;
+             }
++        } else {
++          CCEMIT("ABC SKIP direct init codec=%s due to frame threading active_thread_type=%d", codec->name, avctx->active_thread_type);          
+         }
+         avci->needs_close = 1;
+     }
 diff --git a/libavcodec/ccaption_dec.c b/libavcodec/ccaption_dec.c
 index 9b6c766d87..546b264504 100644
 --- a/libavcodec/ccaption_dec.c
