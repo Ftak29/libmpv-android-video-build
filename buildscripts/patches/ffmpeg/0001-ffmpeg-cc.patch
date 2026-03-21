@@ -1,5 +1,96 @@
+diff --git a/doc/examples/demux_decode.c b/doc/examples/demux_decode.c
+index 64f5547bc4..ebc4c6df6a 100644
+--- a/doc/examples/demux_decode.c
++++ b/doc/examples/demux_decode.c
+@@ -35,6 +35,13 @@
+ #include <libavcodec/avcodec.h>
+ #include <libavformat/avformat.h>
+ 
++#ifdef __ANDROID__
++#include <android/log.h>
++#define CCEMIT(...) __android_log_print(ANDROID_LOG_ERROR, "CC608Log", __VA_ARGS__)
++#else
++#define CCEMIT(...) do {} while (0)
++#endif
++
+ static AVFormatContext *fmt_ctx = NULL;
+ static AVCodecContext *video_dec_ctx = NULL, *audio_dec_ctx;
+ static int width, height;
+@@ -182,8 +189,11 @@ static int open_codec_context(int *stream_idx,
+             return ret;
+         }
+ 
++
+         /* Init the decoders */
++        CCEMIT("ABC3");
+         if ((ret = avcodec_open2(*dec_ctx, dec, NULL)) < 0) {
++            CCEMIT("ABC4");
+             fprintf(stderr, "Failed to open %s codec\n",
+                     av_get_media_type_string(type));
+             return ret;
+diff --git a/fftools/ffmpeg_dec.c b/fftools/ffmpeg_dec.c
+index 5020684a28..ebc06b8cf0 100644
+--- a/fftools/ffmpeg_dec.c
++++ b/fftools/ffmpeg_dec.c
+@@ -36,6 +36,13 @@
+ 
+ #include "ffmpeg.h"
+ 
++#ifdef __ANDROID__
++#include <android/log.h>
++#define CCEMIT(...) __android_log_print(ANDROID_LOG_ERROR, "CC608Log", __VA_ARGS__)
++#else
++#define CCEMIT(...) do {} while (0)
++#endif
++
+ typedef struct DecoderPriv {
+     Decoder             dec;
+ 
+@@ -1602,7 +1609,9 @@ static int dec_open(DecoderPriv *dp, AVDictionary **dec_opts,
+     dp->apply_cropping          = dp->dec_ctx->apply_cropping;
+     dp->dec_ctx->apply_cropping = 0;
+ 
++    CCEMIT("ABC5");
+     if ((ret = avcodec_open2(dp->dec_ctx, codec, NULL)) < 0) {
++        CCEMIT("ABC6");
+         av_log(dp, AV_LOG_ERROR, "Error while opening decoder: %s\n",
+                av_err2str(ret));
+         return ret;
+diff --git a/libavcodec/avcodec.c b/libavcodec/avcodec.c
+index 9ff4c7f319..0c38d9a2db 100644
+--- a/libavcodec/avcodec.c
++++ b/libavcodec/avcodec.c
+@@ -54,6 +54,13 @@
+  */
+ #define FF_MAX_EXTRADATA_SIZE ((1 << 28) - AV_INPUT_BUFFER_PADDING_SIZE)
+ 
++#ifdef __ANDROID__
++#include <android/log.h>
++#define CCEMIT(...) __android_log_print(ANDROID_LOG_ERROR, "CC608Log", __VA_ARGS__)
++#else
++#define CCEMIT(...) do {} while (0)
++#endif
++
+ const SideDataMap ff_sd_global_map[] = {
+     { AV_PKT_DATA_REPLAYGAIN ,                AV_FRAME_DATA_REPLAYGAIN },
+     { AV_PKT_DATA_DISPLAYMATRIX,              AV_FRAME_DATA_DISPLAYMATRIX },
+@@ -151,11 +158,14 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
+     if (avcodec_is_open(avctx))
+         return 0;
+ 
++    CCEMIT("ABC7");
+     if (!codec && !avctx->codec) {
++        CCEMIT("ABC8");
+         av_log(avctx, AV_LOG_ERROR, "No codec provided to avcodec_open2()\n");
+         return AVERROR(EINVAL);
+     }
+     if (codec && avctx->codec && codec != avctx->codec) {
++        CCEMIT("ABC9");
+         av_log(avctx, AV_LOG_ERROR, "This AVCodecContext was allocated for %s, "
+                                     "but %s passed to avcodec_open2()\n", avctx->codec->name, codec->name);
+         return AVERROR(EINVAL);
 diff --git a/libavcodec/ccaption_dec.c b/libavcodec/ccaption_dec.c
-index 9b6c766d87..645f5be1d1 100644
+index 9b6c766d87..546b264504 100644
 --- a/libavcodec/ccaption_dec.c
 +++ b/libavcodec/ccaption_dec.c
 @@ -33,6 +33,13 @@
@@ -8,15 +99,15 @@ index 9b6c766d87..645f5be1d1 100644
  
 +#ifdef __ANDROID__
 +#include <android/log.h>
-+#define CCLOG(...) __android_log_print(ANDROID_LOG_ERROR, "CC608Log", __VA_ARGS__)
++#define CCEMIT(...) __android_log_print(ANDROID_LOG_ERROR, "CC608Log", __VA_ARGS__)
 +#else
-+#define CCLOG(...) do {} while (0)
++#define CCEMIT(...) do {} while (0)
 +#endif
 +
  static const AVRational ms_tb = {1, 1000};
  
  enum cc_mode {
-@@ -278,6 +285,29 @@ typedef struct CCaptionSubContext {
+@@ -278,8 +285,32 @@ typedef struct CCaptionSubContext {
      int readorder;
  } CCaptionSubContext;
  
@@ -45,8 +136,11 @@ index 9b6c766d87..645f5be1d1 100644
 +
  static av_cold int init_decoder(AVCodecContext *avctx)
  {
++    CCEMIT("emit_cc608_if_changedinit_decoder");
      CCaptionSubContext *ctx = avctx->priv_data;
-@@ -391,7 +421,8 @@ static int validate_cc_data_pair(const uint8_t *cc_data_pair, uint8_t *hi)
+ 
+     ctx->logctx = avctx;
+@@ -391,7 +422,8 @@ static int validate_cc_data_pair(const uint8_t *cc_data_pair, uint8_t *hi)
              return AVERROR_INVALIDDATA;
          }
          if (!av_parity(cc_data_pair[1])) {
@@ -56,7 +150,7 @@ index 9b6c766d87..645f5be1d1 100644
          }
      }
  
-@@ -501,7 +532,8 @@ static int capture_screen(CCaptionSubContext *ctx)
+@@ -501,7 +533,8 @@ static int capture_screen(CCaptionSubContext *ctx)
  
              x = ASS_DEFAULT_PLAYRESX * (0.1 + 0.0250 * j);
              y = ASS_DEFAULT_PLAYRESY * (0.1 + 0.0533 * i);
@@ -66,7 +160,15 @@ index 9b6c766d87..645f5be1d1 100644
  
              for (; j < SCREEN_COLUMNS; j++) {
                  const char *e_tag = "", *s_tag = "", *c_tag = "", *b_tag = "";
-@@ -875,8 +907,23 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
+@@ -855,6 +888,7 @@ static int process_cc608(CCaptionSubContext *ctx, uint8_t hi, uint8_t lo)
+ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
+                   int *got_sub, const AVPacket *avpkt)
+ {
++    CCEMIT("ccaption decode called, pkt size=%d", avpkt ? avpkt->size : -1);
+     CCaptionSubContext *ctx = avctx->priv_data;
+     int64_t in_time = sub->pts;
+     int64_t start_time;
+@@ -875,8 +909,23 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
          if (validate_cc_data_pair(bptr + i, &hi))
              continue;
  
@@ -92,7 +194,7 @@ index 9b6c766d87..645f5be1d1 100644
  
          ret = process_cc608(ctx, hi & 0x7f, bptr[i + 2] & 0x7f);
          if (ret < 0)
-@@ -892,6 +939,7 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
+@@ -892,6 +941,7 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
          update_time(ctx, in_time);
  
          if (ctx->buffer[bidx].str[0] || ctx->real_time) {
@@ -100,7 +202,7 @@ index 9b6c766d87..645f5be1d1 100644
              ff_dlog(avctx, "cdp writing data (%s)\n", ctx->buffer[bidx].str);
              start_time = ctx->buffer_time[0];
              sub->pts = start_time;
-@@ -928,6 +976,7 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
+@@ -928,6 +978,7 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
          ctx->screen_touched = 0;
  
          capture_screen(ctx);
@@ -108,7 +210,7 @@ index 9b6c766d87..645f5be1d1 100644
          ctx->buffer_changed = 0;
  
          ret = ff_ass_add_rect2(sub, ctx->buffer[bidx].str, ctx->readorder++, 0, NULL, NULL, &nb_rect_allocated);
-@@ -936,6 +985,9 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
+@@ -936,6 +987,9 @@ static int decode(AVCodecContext *avctx, AVSubtitle *sub,
          sub->end_display_time = -1;
      }
  
@@ -118,3 +220,55 @@ index 9b6c766d87..645f5be1d1 100644
      *got_sub = sub->num_rects > 0;
      return avpkt->size;
  }
+diff --git a/tools/target_dec_fuzzer.c b/tools/target_dec_fuzzer.c
+index 594f04f48b..0dd53a0abf 100644
+--- a/tools/target_dec_fuzzer.c
++++ b/tools/target_dec_fuzzer.c
+@@ -61,6 +61,13 @@
+ //For FF_SANE_NB_CHANNELS, so we dont waste energy testing things that will get instantly rejected
+ #include "libavcodec/internal.h"
+ 
++#ifdef __ANDROID__
++#include <android/log.h>
++#define CCEMIT(...) __android_log_print(ANDROID_LOG_ERROR, "CC608Log", __VA_ARGS__)
++#else
++#define CCEMIT(...) do {} while (0)
++#endif
++
+ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size);
+ 
+ extern const FFCodec * codec_list[];
+@@ -491,6 +498,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
+     }
+ 
+     int res = avcodec_open2(ctx, &c->p, &opts);
++    CCEMIT("ABCA %d", res);
+     if (res < 0) {
+         av_assert0(res != AVERROR_BUG);
+         avcodec_free_context(&ctx);
+diff --git a/tools/target_enc_fuzzer.c b/tools/target_enc_fuzzer.c
+index 059d783071..0a2150f5d5 100644
+--- a/tools/target_enc_fuzzer.c
++++ b/tools/target_enc_fuzzer.c
+@@ -33,6 +33,13 @@
+ #include "libavcodec/codec_internal.h"
+ #include "libavformat/avformat.h"
+ 
++#ifdef __ANDROID__
++#include <android/log.h>
++#define CCEMIT(...) __android_log_print(ANDROID_LOG_ERROR, "CC608Log", __VA_ARGS__)
++#else
++#define CCEMIT(...) do {} while (0)
++#endif
++
+ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size);
+ 
+ extern const FFCodec * codec_list[];
+@@ -156,6 +163,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
+         ctx->width = ctx->height = 64;
+ 
+     int res = avcodec_open2(ctx, &c->p, &opts);
++    CCEMIT("ABC2 %d", res);
+     if (res < 0) {
+         avcodec_free_context(&ctx);
+         av_dict_free(&opts);
