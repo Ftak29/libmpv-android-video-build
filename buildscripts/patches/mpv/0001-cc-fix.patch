@@ -146,7 +146,7 @@ index 5e2e8d74c0..7febf4c489 100644
          }
  
 diff --git a/sub/dec_sub.c b/sub/dec_sub.c
-index 118221a658..90c5ae7d74 100644
+index 118221a658..b955ebebcb 100644
 --- a/sub/dec_sub.c
 +++ b/sub/dec_sub.c
 @@ -34,11 +34,25 @@
@@ -201,11 +201,7 @@ index 118221a658..90c5ae7d74 100644
      for (int n = 0; sd_list[n]; n++) {
          const struct sd_functions *driver = sd_list[n];
          struct sd *sd = talloc(NULL, struct sd);
-@@ -165,20 +182,25 @@ static struct sd *init_decoder(struct dec_sub *sub)
-             .order = sub->order,
-             .attachments = sub->attachments,
-             .codec = sub->codec,
-+            .lang = sub->lang,
+@@ -168,17 +185,21 @@ static struct sd *init_decoder(struct dec_sub *sub)
              .preload_ok = true,
          };
  
@@ -231,7 +227,7 @@ index 118221a658..90c5ae7d74 100644
  // Thread-safety of the returned object: all functions are thread-safe,
  // except sub_get_bitmaps() and sub_get_text(). Decoder backends (sd_*)
  // do not need to acquire locks.
-@@ -187,6 +209,15 @@ static struct sd *init_decoder(struct dec_sub *sub)
+@@ -187,6 +208,15 @@ static struct sd *init_decoder(struct dec_sub *sub)
  struct dec_sub *sub_create(struct mpv_global *global, struct track *track,
                             struct attachment_list *attachments, int order)
  {
@@ -247,7 +243,7 @@ index 118221a658..90c5ae7d74 100644
      mp_assert(track->stream && track->stream->type == STREAM_SUB);
  
      struct dec_sub *sub = talloc(NULL, struct dec_sub);
-@@ -198,6 +229,7 @@ struct dec_sub *sub_create(struct mpv_global *global, struct track *track,
+@@ -198,6 +228,7 @@ struct dec_sub *sub_create(struct mpv_global *global, struct track *track,
          .shared_opts_cache = m_config_cache_alloc(sub, global, &mp_subtitle_shared_sub_opts),
          .sh = track->stream,
          .codec = track->stream->codec,
@@ -255,7 +251,7 @@ index 118221a658..90c5ae7d74 100644
          .attachments = talloc_steal(sub, attachments),
          .play_dir = 1,
          .order = order,
-@@ -210,7 +242,13 @@ struct dec_sub *sub_create(struct mpv_global *global, struct track *track,
+@@ -210,7 +241,13 @@ struct dec_sub *sub_create(struct mpv_global *global, struct track *track,
      sub->shared_opts = sub->shared_opts_cache->opts;
      mp_mutex_init(&sub->lock);
  
