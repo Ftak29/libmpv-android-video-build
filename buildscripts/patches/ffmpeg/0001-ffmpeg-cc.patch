@@ -57,7 +57,7 @@ index 5020684a28..ebc06b8cf0 100644
                 av_err2str(ret));
          return ret;
 diff --git a/libavcodec/avcodec.c b/libavcodec/avcodec.c
-index 9ff4c7f319..132f8edd9a 100644
+index 9ff4c7f319..119c4c1a6c 100644
 --- a/libavcodec/avcodec.c
 +++ b/libavcodec/avcodec.c
 @@ -54,6 +54,13 @@
@@ -93,7 +93,138 @@ index 9ff4c7f319..132f8edd9a 100644
          av_log(avctx, AV_LOG_ERROR, "This AVCodecContext was allocated for %s, "
                                      "but %s passed to avcodec_open2()\n", avctx->codec->name, codec->name);
          return AVERROR(EINVAL);
-@@ -325,6 +339,15 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
+@@ -167,6 +181,8 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
+     if ((avctx->codec_type != AVMEDIA_TYPE_UNKNOWN && avctx->codec_type != codec->type) ||
+         (avctx->codec_id   != AV_CODEC_ID_NONE     && avctx->codec_id   != codec->id)) {
+         av_log(avctx, AV_LOG_ERROR, "Codec type or id mismatches\n");
++                CCEMIT("ABCQ Codec type or id mismatches");
++
+         return AVERROR(EINVAL);
+     }
+ 
+@@ -174,16 +190,20 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
+     avctx->codec_id   = codec->id;
+     avctx->codec      = codec;
+ 
+-    if (avctx->extradata_size < 0 || avctx->extradata_size >= FF_MAX_EXTRADATA_SIZE)
++    if (avctx->extradata_size < 0 || avctx->extradata_size >= FF_MAX_EXTRADATA_SIZE) {      
++        CCEMIT("ABCW Codec type or id mismatches");
+         return AVERROR(EINVAL);
++    }
+ 
+     // set the whitelist from provided options dict,
+     // so we can check it immediately
+     e = options ? av_dict_get(*options, "codec_whitelist", NULL, 0) : NULL;
+     if (e) {
+         ret = av_opt_set(avctx, e->key, e->value, 0);
+-        if (ret < 0)
++        if (ret < 0) {
++            CCEMIT("ABCWW %d", ret);
+             return ret;
++        }
+     }
+ 
+     if (avctx->codec_whitelist && av_match_list(codec->name, avctx->codec_whitelist, ',') <= 0) {
+@@ -196,6 +216,7 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
+         ff_encode_internal_alloc();
+     if (!avci) {
+         ret = AVERROR(ENOMEM);
++        CCEMIT("ABCEEEE");
+         goto end;
+     }
+     avctx->internal = avci;
+@@ -204,6 +225,7 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
+     avci->buffer_pkt = av_packet_alloc();
+     if (!avci->buffer_frame || !avci->buffer_pkt) {
+         ret = AVERROR(ENOMEM);
++        CCEMIT("ABCEEEE2");        
+         goto free_and_end;
+     }
+ 
+@@ -212,6 +234,7 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
+             avctx->priv_data = av_mallocz(codec2->priv_data_size);
+             if (!avctx->priv_data) {
+                 ret = AVERROR(ENOMEM);
++                CCEMIT("ABCEEEEZ %d", ret);                
+                 goto free_and_end;
+             }
+             if (codec->priv_class) {
+@@ -224,8 +247,10 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
+     }
+ 
+     ret = av_opt_set_dict2(avctx, options, AV_OPT_SEARCH_CHILDREN);
+-    if (ret < 0)
++    if (ret < 0) {
++        CCEMIT("ABCEEEEZ2 %d", ret);                
+         goto free_and_end;
++    }
+ 
+     // only call ff_set_dimensions() for non H.264/VP6F/DXV codecs so as not to overwrite previously setup dimensions
+     if (!(avctx->coded_width && avctx->coded_height && avctx->width && avctx->height &&
+@@ -234,8 +259,10 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
+             ret = ff_set_dimensions(avctx, avctx->coded_width, avctx->coded_height);
+         else if (avctx->width && avctx->height)
+             ret = ff_set_dimensions(avctx, avctx->width, avctx->height);
+-        if (ret < 0)
++        if (ret < 0) {
++          CCEMIT("ABCEEEEZ3 %d", ret);                
+             goto free_and_end;
++        }
+     }
+ 
+     if ((avctx->coded_width || avctx->coded_height || avctx->width || avctx->height)
+@@ -262,11 +289,13 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
+         !(codec->capabilities & AV_CODEC_CAP_CHANNEL_CONF)) {
+         av_log(avctx, AV_LOG_ERROR, "Invalid sample rate: %d\n", avctx->sample_rate);
+         ret = AVERROR(EINVAL);
++        CCEMIT("ABCEEEEZ4 %d", ret);                
+         goto free_and_end;
+     }
+     if (avctx->block_align < 0) {
+         av_log(avctx, AV_LOG_ERROR, "Invalid block align: %d\n", avctx->block_align);
+         ret = AVERROR(EINVAL);
++        CCEMIT("ABCEEEEZ5 %d", ret);                
+         goto free_and_end;
+     }
+ 
+@@ -277,16 +306,19 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
+         av_log(avctx, AV_LOG_ERROR, "%s requires channel layout to be set\n",
+                ff_codec_is_decoder(codec) ? "Decoder" : "Encoder");
+         ret = AVERROR(EINVAL);
++        CCEMIT("ABCEEEEZ6 %d", ret);                
+         goto free_and_end;
+     }
+     if (avctx->ch_layout.nb_channels && !av_channel_layout_check(&avctx->ch_layout)) {
+         av_log(avctx, AV_LOG_ERROR, "Invalid channel layout\n");
+         ret = AVERROR(EINVAL);
++        CCEMIT("ABCEEEEZ7 %d", ret);                
+         goto free_and_end;
+     }
+     if (avctx->ch_layout.nb_channels > FF_SANE_NB_CHANNELS) {
+         av_log(avctx, AV_LOG_ERROR, "Too many channels: %d\n", avctx->ch_layout.nb_channels);
+         ret = AVERROR(EINVAL);
++        CCEMIT("ABCEEEEZ8 %d", ret);                
+         goto free_and_end;
+     }
+ 
+@@ -306,6 +338,7 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
+             av_log(avctx, AV_LOG_ERROR, "Alternatively use the non experimental %s '%s'.\n",
+                 codec_string, codec2->name);
+         ret = AVERROR_EXPERIMENTAL;
++        CCEMIT("ABCEEEEZ9 %d", ret);                
+         goto free_and_end;
+     }
+ 
+@@ -319,15 +352,27 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
+         ret = ff_encode_preinit(avctx);
+     else
+         ret = ff_decode_preinit(avctx);
+-    if (ret < 0)
++    if (ret < 0) {
++      CCEMIT("ABCEEEEZ11 %d", ret);                
+         goto free_and_end;
++    }
+ 
      if (HAVE_THREADS && !avci->frame_thread_encoder) {
          /* Frame-threaded decoders call FFCodec.init for their child contexts. */
          lock_avcodec(codec2);
@@ -109,7 +240,11 @@ index 9ff4c7f319..132f8edd9a 100644
          ret = ff_thread_init(avctx);
          unlock_avcodec(codec2);
          if (ret < 0) {
-@@ -336,14 +359,18 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
++          CCEMIT("ABCEEEEZ12 %d", ret);                
+             goto free_and_end;
+         }
+     }
+@@ -336,14 +381,19 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
  
      if (!(avctx->active_thread_type & FF_THREAD_FRAME) ||
          avci->frame_thread_encoder) {
@@ -121,6 +256,7 @@ index 9ff4c7f319..132f8edd9a 100644
              unlock_avcodec(codec2);
              if (ret < 0) {
                  avci->needs_close = codec2->caps_internal & FF_CODEC_CAP_INIT_CLEANUP;
++                CCEMIT("ABCEEEEZ13 %d", ret);                
                  goto free_and_end;
              }
 +        } else {
@@ -128,6 +264,26 @@ index 9ff4c7f319..132f8edd9a 100644
          }
          avci->needs_close = 1;
      }
+@@ -360,16 +410,18 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
+         if ((avctx->ch_layout.nb_channels && !av_channel_layout_check(&avctx->ch_layout)) ||
+             avctx->ch_layout.nb_channels > FF_SANE_NB_CHANNELS) {
+             ret = AVERROR(EINVAL);
++            CCEMIT("ABCEEEEZ14 %d", ret);                
+             goto free_and_end;
+         }
+         if (avctx->bits_per_coded_sample < 0) {
+             ret = AVERROR(EINVAL);
++            CCEMIT("ABCEEEEZ15 %d", ret);                
+             goto free_and_end;
+         }
+     }
+     if (codec->priv_class)
+         av_assert0(*(const AVClass **)avctx->priv_data == codec->priv_class);
+-
++CCEMIT("ABCEEEEZ16");                
+ end:
+ 
+     return ret;
 diff --git a/libavcodec/ccaption_dec.c b/libavcodec/ccaption_dec.c
 index 9b6c766d87..546b264504 100644
 --- a/libavcodec/ccaption_dec.c
