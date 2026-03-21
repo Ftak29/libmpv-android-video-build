@@ -1,5 +1,5 @@
 diff --git a/demux/demux.c b/demux/demux.c
-index d1accba789..1b1c1986fa 100644
+index d1accba789..3602bc6828 100644
 --- a/demux/demux.c
 +++ b/demux/demux.c
 @@ -49,6 +49,14 @@
@@ -46,7 +46,7 @@ index d1accba789..1b1c1986fa 100644
          in->thread_terminate = false;
      }
  }
-@@ -1242,15 +1256,19 @@ const char *stream_type_name(enum stream_type type)
+@@ -1242,16 +1256,21 @@ const char *stream_type_name(enum stream_type type)
      default:            return "unknown";
      }
  }
@@ -65,9 +65,11 @@ index d1accba789..1b1c1986fa 100644
 +        CCEMIT("QQQ CCDBG created CC track: sh=%p type=%d codec=%s default=%d",  sh, sh->type, sh->codec && sh->codec->codec ? sh->codec->codec : "null",  sh->default_track);
 +       
          sh->codec->codec = "eia_608";
++        sh->codec->codec = "ccaption";
          sh->default_track = true;
          sh->hls_bitrate = stream->hls_bitrate;
-@@ -1265,11 +1283,18 @@ static struct sh_stream *demuxer_get_cc_track_locked(struct sh_stream *stream)
+         sh->program_id = stream->program_id;
+@@ -1265,11 +1284,18 @@ static struct sh_stream *demuxer_get_cc_track_locked(struct sh_stream *stream)
  
  void demuxer_feed_caption(struct sh_stream *stream, demux_packet_t *dp)
  {
@@ -87,7 +89,7 @@ index d1accba789..1b1c1986fa 100644
          mp_mutex_unlock(&in->lock);
          talloc_free(dp);
          return;
-@@ -1278,6 +1303,7 @@ void demuxer_feed_caption(struct sh_stream *stream, demux_packet_t *dp)
+@@ -1278,6 +1304,7 @@ void demuxer_feed_caption(struct sh_stream *stream, demux_packet_t *dp)
      dp->keyframe = true;
      dp->pts = MP_ADD_PTS(dp->pts, -in->ts_offset);
      dp->dts = MP_ADD_PTS(dp->dts, -in->ts_offset);
