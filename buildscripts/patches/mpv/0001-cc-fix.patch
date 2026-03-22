@@ -268,7 +268,7 @@ index 118221a658..b955ebebcb 100644
          update_subtitle_speed(sub);
          return sub;
 diff --git a/sub/sd_lavc.c b/sub/sd_lavc.c
-index 5cbc6d0a21..3d46f9e7ac 100644
+index 5cbc6d0a21..f32952c5cd 100644
 --- a/sub/sd_lavc.c
 +++ b/sub/sd_lavc.c
 @@ -37,6 +37,14 @@
@@ -286,62 +286,70 @@ index 5cbc6d0a21..3d46f9e7ac 100644
  struct sub {
      bool valid;
      AVSubtitle avsub;
-@@ -75,9 +83,27 @@ struct sd_lavc_priv {
+@@ -75,30 +83,45 @@ struct sd_lavc_priv {
  
  static int init(struct sd *sd)
  {
 -    enum AVCodecID cid = mp_codec_to_av_codec_id(sd->codec->codec);
-+    const char *codec_name = sd->codec->codec;
-+    if (codec_name && strcmp(codec_name, "eia_608") == 0)
-+        codec_name = "ccaption";
-+
-+    CCEMIT("QQQ MAP codec_name=%s orig=%s\n",
-+           codec_name ? codec_name : "null",
-+           sd->codec && sd->codec->codec ? sd->codec->codec : "null");
-+
-+//    enum AVCodecID cid = mp_codec_to_av_codec_id(codec_name);
-+
++    struct sd_lavc_priv *priv = talloc_zero(NULL, struct sd_lavc_priv);
++    AVCodecContext *ctx = NULL;
++    const AVCodec *sub_codec = NULL;
 +    enum AVCodecID cid;
 +
 +    if (sd->codec->codec && strcmp(sd->codec->codec, "eia_608") == 0) {
-+        MP_ERR(sd, "QQQ FIX: forcing AV_CODEC_ID_EIA_608\n");
++        MP_ERR(sd, "QQQ FORCE eia_608 path\n");
 +        cid = AV_CODEC_ID_EIA_608;
++        sub_codec = avcodec_find_decoder_by_name("ccaption");
++        MP_ERR(sd, "QQQ FORCE decoder=%p name=%s\n",
++               sub_codec, sub_codec ? sub_codec->name : "null");
++        if (!sub_codec)
++            goto error_probe;
 +    } else {
 +        cid = mp_codec_to_av_codec_id(sd->codec->codec);
-+    }
++
++        switch (cid) {
++        case AV_CODEC_ID_DVB_SUBTITLE:
++        case AV_CODEC_ID_DVB_TELETEXT:
++        case AV_CODEC_ID_HDMV_PGS_SUBTITLE:
++        case AV_CODEC_ID_XSUB:
++        case AV_CODEC_ID_DVD_SUBTITLE:
++        case AV_CODEC_ID_ARIB_CAPTION:
++            break;
++        default:
++            return -1;
++        }
  
 -    // Supported codecs must be known to decode to paletted bitmaps
-+    CCEMIT("QQQ MAP cid=%d\n", cid);
-+    
-     switch (cid) {
-     case AV_CODEC_ID_DVB_SUBTITLE:
-     case AV_CODEC_ID_DVB_TELETEXT:
-@@ -85,6 +111,7 @@ static int init(struct sd *sd)
-     case AV_CODEC_ID_XSUB:
-     case AV_CODEC_ID_DVD_SUBTITLE:
-     case AV_CODEC_ID_ARIB_CAPTION:
-+    case AV_CODEC_ID_EIA_608:
-         break;
-     default:
-         return -1;
-@@ -92,7 +119,15 @@ static int init(struct sd *sd)
- 
-     struct sd_lavc_priv *priv = talloc_zero(NULL, struct sd_lavc_priv);
-     AVCodecContext *ctx = NULL;
--    const AVCodec *sub_codec = avcodec_find_decoder(cid);
-+//    const AVCodec *sub_codec = avcodec_find_decoder(cid);
-+    const AVCodec *sub_codec;
-+
-+    if (cid == AV_CODEC_ID_EIA_608) {
-+        sub_codec = avcodec_find_decoder_by_name("ccaption");
-+        MP_ERR(sd, "QQQ FIX: using ccaption decoder\n");
-+    } else {
+-    switch (cid) {
+-    case AV_CODEC_ID_DVB_SUBTITLE:
+-    case AV_CODEC_ID_DVB_TELETEXT:
+-    case AV_CODEC_ID_HDMV_PGS_SUBTITLE:
+-    case AV_CODEC_ID_XSUB:
+-    case AV_CODEC_ID_DVD_SUBTITLE:
+-    case AV_CODEC_ID_ARIB_CAPTION:
+-        break;
+-    default:
+-        return -1;
 +        sub_codec = avcodec_find_decoder(cid);
-+    }    
-     if (!sub_codec)
-         goto error_probe;
++        if (!sub_codec)
++            goto error_probe;
+     }
+ 
+-    struct sd_lavc_priv *priv = talloc_zero(NULL, struct sd_lavc_priv);
+-    AVCodecContext *ctx = NULL;
+-    const AVCodec *sub_codec = avcodec_find_decoder(cid);
+-    if (!sub_codec)
+-        goto error_probe;
      ctx = avcodec_alloc_context3(sub_codec);
-@@ -121,7 +156,7 @@ static int init(struct sd *sd)
+     if (!ctx)
+         goto error_probe;
+ 
++    MP_ERR(sd, "QQQ ABOUT TO OPEN codec=%s id=%d\n",   sub_codec->name, sub_codec->id);
++    
+     mp_set_avopts(sd->log, ctx, sd->opts->sub_avopts);
+ 
+     switch (cid) {
+@@ -121,7 +144,7 @@ static int init(struct sd *sd)
      }
      }
  
@@ -350,7 +358,7 @@ index 5cbc6d0a21..3d46f9e7ac 100644
  
      priv->avpkt = av_packet_alloc();
      priv->codec = sd->codec;
-@@ -129,10 +164,16 @@ static int init(struct sd *sd)
+@@ -129,10 +152,16 @@ static int init(struct sd *sd)
          goto error;
      if (mp_set_avctx_codec_headers(ctx, sd->codec) < 0)
          goto error;
