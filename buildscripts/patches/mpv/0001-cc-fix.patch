@@ -268,7 +268,7 @@ index 118221a658..b955ebebcb 100644
          update_subtitle_speed(sub);
          return sub;
 diff --git a/sub/sd_lavc.c b/sub/sd_lavc.c
-index 5cbc6d0a21..f32952c5cd 100644
+index 5cbc6d0a21..039f68241f 100644
 --- a/sub/sd_lavc.c
 +++ b/sub/sd_lavc.c
 @@ -37,6 +37,14 @@
@@ -286,11 +286,12 @@ index 5cbc6d0a21..f32952c5cd 100644
  struct sub {
      bool valid;
      AVSubtitle avsub;
-@@ -75,30 +83,45 @@ struct sd_lavc_priv {
+@@ -75,30 +83,46 @@ struct sd_lavc_priv {
  
  static int init(struct sd *sd)
  {
 -    enum AVCodecID cid = mp_codec_to_av_codec_id(sd->codec->codec);
++    CCEMIT("QQQ SD_LAVC ENTER build_marker_1 codec=%s\n",    sd->codec && sd->codec->codec ? sd->codec->codec : "null");
 +    struct sd_lavc_priv *priv = talloc_zero(NULL, struct sd_lavc_priv);
 +    AVCodecContext *ctx = NULL;
 +    const AVCodec *sub_codec = NULL;
@@ -349,7 +350,7 @@ index 5cbc6d0a21..f32952c5cd 100644
      mp_set_avopts(sd->log, ctx, sd->opts->sub_avopts);
  
      switch (cid) {
-@@ -121,7 +144,7 @@ static int init(struct sd *sd)
+@@ -121,7 +145,7 @@ static int init(struct sd *sd)
      }
      }
  
@@ -358,7 +359,7 @@ index 5cbc6d0a21..f32952c5cd 100644
  
      priv->avpkt = av_packet_alloc();
      priv->codec = sd->codec;
-@@ -129,10 +152,16 @@ static int init(struct sd *sd)
+@@ -129,10 +153,16 @@ static int init(struct sd *sd)
          goto error;
      if (mp_set_avctx_codec_headers(ctx, sd->codec) < 0)
          goto error;
