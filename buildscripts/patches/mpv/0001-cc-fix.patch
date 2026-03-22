@@ -268,7 +268,7 @@ index 118221a658..b955ebebcb 100644
          update_subtitle_speed(sub);
          return sub;
 diff --git a/sub/sd_lavc.c b/sub/sd_lavc.c
-index 5cbc6d0a21..0f19e2e247 100644
+index 5cbc6d0a21..33e4cb53be 100644
 --- a/sub/sd_lavc.c
 +++ b/sub/sd_lavc.c
 @@ -37,6 +37,14 @@
@@ -286,7 +286,7 @@ index 5cbc6d0a21..0f19e2e247 100644
  struct sub {
      bool valid;
      AVSubtitle avsub;
-@@ -75,30 +83,53 @@ struct sd_lavc_priv {
+@@ -75,30 +83,64 @@ struct sd_lavc_priv {
  
  static int init(struct sd *sd)
  {
@@ -297,14 +297,17 @@ index 5cbc6d0a21..0f19e2e247 100644
 +    const AVCodec *sub_codec = NULL;
 +    enum AVCodecID cid;
 +
++
 +    if (sd->codec->codec && strcmp(sd->codec->codec, "eia_608") == 0) {
-+        MP_ERR(sd, "QQQ FORCE eia_608 path\n");
++        CCEMIT("QQQ FORCE eia_608 path");
 +        cid = AV_CODEC_ID_EIA_608;
 +        sub_codec = avcodec_find_decoder_by_name("ccaption");
-+        MP_ERR(sd, "QQQ FORCE decoder=%p name=%s\n",
++        CCEMIT("QQQ FORCE decoder ptr=%p name=%s",
 +               sub_codec, sub_codec ? sub_codec->name : "null");
-+        if (!sub_codec)
++        if (!sub_codec) {
++            CCEMIT("QQQ FORCE decoder not found");
 +            goto error_probe;
++        }
 +    } else {
 +        cid = mp_codec_to_av_codec_id(sd->codec->codec);
 +
@@ -335,10 +338,10 @@ index 5cbc6d0a21..0f19e2e247 100644
 -        return -1;
 +        if (cid == AV_CODEC_ID_EIA_608) {
 +            sub_codec = avcodec_find_decoder_by_name("ccaption");
-+            MP_ERR(sd, "QQQ FIX: using ccaption decoder\n");
++            CCEMIT("QQQ FIX: using ccaption decoder");
 +        } else {
 +            sub_codec = avcodec_find_decoder(cid);
-+        }        
++        }
 +        if (!sub_codec)
 +            goto error_probe;
      }
@@ -347,17 +350,24 @@ index 5cbc6d0a21..0f19e2e247 100644
 -    AVCodecContext *ctx = NULL;
 -    const AVCodec *sub_codec = avcodec_find_decoder(cid);
 -    if (!sub_codec)
--        goto error_probe;
++    ctx = avcodec_alloc_context3(sub_codec);
++    if (!ctx)
+         goto error_probe;
++
++    CCEMIT("QQQ ABOUT TO OPEN codec=%s id=%d",
++           sub_codec ? sub_codec->name : "null",
++           sub_codec ? sub_codec->id : -1);    
++
      ctx = avcodec_alloc_context3(sub_codec);
      if (!ctx)
          goto error_probe;
  
-+    MP_ERR(sd, "QQQ ABOUT TO OPEN codec=%s id=%d\n",   sub_codec->name, sub_codec->id);
++    CCEMIT("QQQ ABOUT TO OPEN codec=%s id=%d\n",   sub_codec->name, sub_codec->id);
 +    
      mp_set_avopts(sd->log, ctx, sd->opts->sub_avopts);
  
      switch (cid) {
-@@ -121,7 +152,7 @@ static int init(struct sd *sd)
+@@ -121,7 +163,7 @@ static int init(struct sd *sd)
      }
      }
  
@@ -366,7 +376,7 @@ index 5cbc6d0a21..0f19e2e247 100644
  
      priv->avpkt = av_packet_alloc();
      priv->codec = sd->codec;
-@@ -129,10 +160,16 @@ static int init(struct sd *sd)
+@@ -129,10 +171,16 @@ static int init(struct sd *sd)
          goto error;
      if (mp_set_avctx_codec_headers(ctx, sd->codec) < 0)
          goto error;
