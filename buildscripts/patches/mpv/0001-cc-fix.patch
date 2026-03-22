@@ -1,5 +1,5 @@
 diff --git a/demux/demux.c b/demux/demux.c
-index d1accba789..3602bc6828 100644
+index d1accba789..0d0d894748 100644
 --- a/demux/demux.c
 +++ b/demux/demux.c
 @@ -49,6 +49,14 @@
@@ -65,7 +65,7 @@ index d1accba789..3602bc6828 100644
 +        CCEMIT("QQQ CCDBG created CC track: sh=%p type=%d codec=%s default=%d",  sh, sh->type, sh->codec && sh->codec->codec ? sh->codec->codec : "null",  sh->default_track);
 +       
          sh->codec->codec = "eia_608";
-+        sh->codec->codec = "ccaption";
++        //sh->codec->codec = "ccaption";
          sh->default_track = true;
          sh->hls_bitrate = stream->hls_bitrate;
          sh->program_id = stream->program_id;
@@ -98,7 +98,7 @@ index d1accba789..3602bc6828 100644
      add_packet_locked(sh, dp);
      mp_mutex_unlock(&in->lock);
 diff --git a/filters/f_decoder_wrapper.c b/filters/f_decoder_wrapper.c
-index 5e2e8d74c0..7febf4c489 100644
+index 5e2e8d74c0..f429359ffc 100644
 --- a/filters/f_decoder_wrapper.c
 +++ b/filters/f_decoder_wrapper.c
 @@ -52,6 +52,14 @@
@@ -133,11 +133,11 @@ index 5e2e8d74c0..7febf4c489 100644
  
 -        struct demux_packet *ccpkt = new_demux_packet_from_buf(p->public.f->packet_pool,
 -                                                               mpi->a53_cc);
-+        CCEMIT("QQQ CCDBG  process_decoded_frame: pts=%f dts=%f a53_cc=%p",  mpi->pts, mpi->dts, mpi->a53_cc);
++        //CCEMIT("QQQ CCDBG  process_decoded_frame: pts=%f dts=%f a53_cc=%p",  mpi->pts, mpi->dts, mpi->a53_cc);
 +
 +        struct demux_packet *ccpkt = new_demux_packet_from_buf(p->public.f->packet_pool, mpi->a53_cc);
 + 
-+        CCEMIT("QQQ CCDBG new_demux_packet_from_buf: ccpkt=%p", ccpkt);
++        //CCEMIT("QQQ CCDBG new_demux_packet_from_buf: ccpkt=%p", ccpkt);
 +
          if (ccpkt) {
              av_buffer_unref(&mpi->a53_cc);
