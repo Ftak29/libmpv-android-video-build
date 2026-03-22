@@ -268,7 +268,7 @@ index 118221a658..b955ebebcb 100644
          update_subtitle_speed(sub);
          return sub;
 diff --git a/sub/sd_lavc.c b/sub/sd_lavc.c
-index 5cbc6d0a21..be2688fbc3 100644
+index 5cbc6d0a21..ec81a65023 100644
 --- a/sub/sd_lavc.c
 +++ b/sub/sd_lavc.c
 @@ -37,6 +37,14 @@
@@ -286,7 +286,7 @@ index 5cbc6d0a21..be2688fbc3 100644
  struct sub {
      bool valid;
      AVSubtitle avsub;
-@@ -75,9 +83,20 @@ struct sd_lavc_priv {
+@@ -75,9 +83,18 @@ struct sd_lavc_priv {
  
  static int init(struct sd *sd)
  {
@@ -300,16 +300,14 @@ index 5cbc6d0a21..be2688fbc3 100644
 +           sd->codec && sd->codec->codec ? sd->codec->codec : "null");
 +
 +    enum AVCodecID cid = mp_codec_to_av_codec_id(codec_name);
-+
-+    CCEMIT("QQQ MAP cid=%d\n", cid);
-+    
-+    enum AVCodecID cid = mp_codec_to_av_codec_id(codec_name);
  
 -    // Supported codecs must be known to decode to paletted bitmaps
++    CCEMIT("QQQ MAP cid=%d\n", cid);
++    
      switch (cid) {
      case AV_CODEC_ID_DVB_SUBTITLE:
      case AV_CODEC_ID_DVB_TELETEXT:
-@@ -85,6 +104,7 @@ static int init(struct sd *sd)
+@@ -85,6 +102,7 @@ static int init(struct sd *sd)
      case AV_CODEC_ID_XSUB:
      case AV_CODEC_ID_DVD_SUBTITLE:
      case AV_CODEC_ID_ARIB_CAPTION:
@@ -317,7 +315,7 @@ index 5cbc6d0a21..be2688fbc3 100644
          break;
      default:
          return -1;
-@@ -121,7 +141,7 @@ static int init(struct sd *sd)
+@@ -121,7 +139,7 @@ static int init(struct sd *sd)
      }
      }
  
@@ -326,7 +324,7 @@ index 5cbc6d0a21..be2688fbc3 100644
  
      priv->avpkt = av_packet_alloc();
      priv->codec = sd->codec;
-@@ -129,10 +149,16 @@ static int init(struct sd *sd)
+@@ -129,10 +147,16 @@ static int init(struct sd *sd)
          goto error;
      if (mp_set_avctx_codec_headers(ctx, sd->codec) < 0)
          goto error;
