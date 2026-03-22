@@ -138,7 +138,6 @@ cpuflags=
 	--enable-decoder=vplayer \
 	--enable-decoder=webvtt \
 	--enable-decoder=movtext \
-	--enable-decoder=ccaption \
 	--enable-decoder=eia_608 \	
 	\
 	--enable-demuxer=concat \
