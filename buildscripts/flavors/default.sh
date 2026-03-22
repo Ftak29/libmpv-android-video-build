@@ -38,7 +38,6 @@ cpuflags=
 	--pkg-config-flags=--static \
 	\
 	--disable-muxers \
-	--disable-decoders \
 	--disable-encoders \
 	--disable-parsers \
 	--disable-protocols \
@@ -138,7 +137,6 @@ cpuflags=
 	--enable-decoder=vplayer \
 	--enable-decoder=webvtt \
 	--enable-decoder=movtext \
-	--enable-decoder=ccaption \	
 	\
 	--enable-demuxer=concat \
 	--enable-demuxer=data \
