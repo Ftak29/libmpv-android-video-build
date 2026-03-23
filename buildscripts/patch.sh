@@ -37,12 +37,12 @@ for dep_path in "${PATCHES[@]}"; do
 
         # Normalize version strings after patching
         if [ "$dep" = "mpv" ]; then
-            printf '%s\n' "$EZTV_LIB_VER-$v_mpv" > MPV_VERSION
+            printf '%s\n' "$EZTV_LIB_VER $v_mpv" > MPV_VERSION
             rm -rf .git
         fi
 
         if [ "$dep" = "ffmpeg" ]; then
-            printf '%s\n' "$EZTV_LIB_VER-$v_ffmpeg" > VERSION
+            printf '%s\n' "$v_ffmpeg" > VERSION
             rm -rf .git
         fi
 
