@@ -16,7 +16,7 @@ v_mbedtls=3.6.5
 v_libplacebo=7.351.0
 v_dav1d=1.5.3
 v_ffmpeg=8.1
-v_mpv=master
+v_mpv=0.41.0
 v_libvpx=1.15
 v_libwebp=1.6.0
 
