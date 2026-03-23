@@ -2,17 +2,19 @@
 
 set -euo pipefail
 
+. ./include/depinfo.sh
+
 PATCHES=(patches/*)
 ROOT=$(pwd)
 
 for dep_path in "${PATCHES[@]}"; do
     if [ -d "$dep_path" ]; then
         patches=($dep_path/*)
-        dep=$(echo $dep_path |cut -d/ -f 2)
-        
+        dep=$(echo $dep_path | cut -d/ -f 2)
+
         cd deps/$dep
         echo Patching $dep
-        
+
         git reset --hard
 
         for patch in "${patches[@]}"; do
@@ -32,7 +34,18 @@ for dep_path in "${PATCHES[@]}"; do
             echo "No changes to commit for $dep"
         fi
 
-        cd $ROOT
+        # Normalize version strings after patching
+        if [ "$dep" = "mpv" ]; then
+            printf '%s\n' "$v_mpv" > MPV_VERSION
+            rm -rf .git
+        fi
+
+        if [ "$dep" = "ffmpeg" ]; then
+            printf '%s\n' "$v_ffmpeg" > VERSION
+            rm -rf .git
+        fi
+
+        cd "$ROOT"
     fi
 done
 
