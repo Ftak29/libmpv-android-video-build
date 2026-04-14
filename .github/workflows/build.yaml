@@ -24,6 +24,11 @@ jobs:
     name: Build
     runs-on: ubuntu-22.04
     steps:
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gettext autopoint autoconf automake libtool pkg-config
+          
       - name: Checkout repository
         uses: actions/checkout@v6
 
