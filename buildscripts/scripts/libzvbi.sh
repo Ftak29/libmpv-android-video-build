@@ -29,8 +29,10 @@ cd _build$ndk_suffix
 	CXXFLAGS="$CXXFLAGS -fPIC -pthread" \
 	LDFLAGS="$LDFLAGS -pthread" \
 	LIBS="-lc" \
-	ac_cv_search_pthread_create='none required' \
 	ac_cv_func_pthread_create=yes \
+	ac_cv_search_pthread_create='none required' \
+	ac_cv_lib_pthread_pthread_create=no \
+	ac_cv_lib_pthreadGC2_pthread_create=no \
 	--host="$ndk_triple" \
 	--prefix=/ \
 	--with-pic \
@@ -44,6 +46,6 @@ cd _build$ndk_suffix
 	--disable-proxy \
 	--disable-examples \
 	--disable-tests
-
+	
 make -j$cores
 make DESTDIR="$prefix_dir" install
