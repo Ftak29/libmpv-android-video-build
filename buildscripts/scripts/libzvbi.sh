@@ -12,7 +12,7 @@ else
 	exit 255
 fi
 
-[ -f configure ] || ./autogen.sh
+[ -f configure ] || { echo "configure not found in libzvbi source"; exit 1; }
 
 mkdir -p _build$ndk_suffix
 cd _build$ndk_suffix
