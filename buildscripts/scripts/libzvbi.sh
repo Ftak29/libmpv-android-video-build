@@ -23,33 +23,33 @@ cd _build$ndk_suffix
 rm -f config.cache
 rm -f ../config.cache
 
-../configure \
-	CC="$CC" \
-	CXX="$CXX" \
-	AR="$AR" \
-	RANLIB="$RANLIB" \
-	CFLAGS="$CFLAGS -fPIC -pthread" \
-	CXXFLAGS="$CXXFLAGS -fPIC -pthread" \
-	LDFLAGS="$LDFLAGS -pthread" \
-	LIBS="-lc" \
-	ac_cv_func_pthread_create=yes \
-	ac_cv_search_pthread_create='none required' \
-	ac_cv_lib_pthread_pthread_create=no \
-	ac_cv_lib_pthreadGC2_pthread_create=no \
-	--host="$ndk_triple" \
-	--prefix=/ \
-	--with-pic \
-	--enable-static \
-	--disable-shared \
-	--without-doxygen \
-	--without-x \
-	--disable-dvb \
-	--disable-bktr \
-	--disable-nls \
-	--disable-proxy \
-	--disable-examples \
-	--disable-tests
-	
+env \
+  ac_cv_func_pthread_create=yes \
+  ac_cv_search_pthread_create='none required' \
+  ac_cv_lib_pthread_pthread_create=no \
+  ac_cv_lib_pthreadGC2_pthread_create=no \
+  ../configure \
+    CC="$CC" \
+    CXX="$CXX" \
+    AR="$AR" \
+    RANLIB="$RANLIB" \
+    CFLAGS="$CFLAGS -fPIC -pthread" \
+    CXXFLAGS="$CXXFLAGS -fPIC -pthread" \
+    LDFLAGS="$LDFLAGS -pthread" \
+    LIBS="-lc" \
+    --host="$ndk_triple" \
+    --prefix=/ \
+    --with-pic \
+    --enable-static \
+    --disable-shared \
+    --without-doxygen \
+    --without-x \
+    --disable-dvb \
+    --disable-bktr \
+    --disable-nls \
+    --disable-proxy \
+    --disable-examples \
+    --disable-tests
 	
 make -j$cores
 make DESTDIR="$prefix_dir" install
