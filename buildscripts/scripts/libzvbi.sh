@@ -12,7 +12,10 @@ else
 	exit 255
 fi
 
-[ -f configure ] || { echo "configure not found in libzvbi source"; exit 1; }
+if [ ! -f configure ]; then
+	command -v autopoint >/dev/null 2>&1 || { echo "autopoint not found; install gettext/autopoint"; exit 1; }
+	./autogen.sh
+fi
 
 mkdir -p _build$ndk_suffix
 cd _build$ndk_suffix
@@ -22,8 +25,8 @@ cd _build$ndk_suffix
 	CXX="$CXX" \
 	AR="$AR" \
 	RANLIB="$RANLIB" \
-	CFLAGS="-fPIC" \
-	CXXFLAGS="-fPIC" \
+	CFLAGS="$CFLAGS -fPIC" \
+	CXXFLAGS="$CXXFLAGS -fPIC" \
 	LDFLAGS="$LDFLAGS" \
 	--host="$ndk_triple" \
 	--prefix=/ \
