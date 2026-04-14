@@ -1,7 +1,0 @@
-diff --git a/configure.ac b/configure.ac
-index 7d548f8..e69de29 100644
---- a/configure.ac
-+++ b/configure.ac
-@@ -14,1 +14,1 @@
--dnl AC_CHECK_LIB(pthread, pthread_create,,[ AC_CHECK_LIB(pthreadGC2, pthread_create,,[ AC_LINK_IFELSE([AC_LANG_PROGRAM([[]], [[pthread_create();]])],[],[ # same as previous, but use '-pthread' instead of '-lpthread' LDFLAGS="$LDFLAGS -pthread" AC_LINK_IFELSE([AC_LANG_PROGRAM([[]], [[pthread_create();]])],[],[ AC_MSG_ERROR([Unable to link pthread functions]) ]) ]) ]) ]) dnl dnl See if struct tm has tm_gmtoff, a BSD/GNU extension.
-+dnl AC_CHECK_LIB(pthread, pthread_create,,[ AC_CHECK_LIB(pthreadGC2, pthread_create,,[ AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <pthread.h>]], [[pthread_t t; pthread_create(&t, 0, 0, 0);]])],[],[ # same as previous, but use '-pthread' instead of '-lpthread' save_LDFLAGS="$LDFLAGS" LDFLAGS="$LDFLAGS -pthread" AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <pthread.h>]], [[pthread_t t; pthread_create(&t, 0, 0, 0);]])],[],[ AC_MSG_ERROR([Unable to link pthread functions]) ]) LDFLAGS="$save_LDFLAGS" ]) ]) ]) dnl dnl See if struct tm has tm_gmtoff, a BSD/GNU extension.
