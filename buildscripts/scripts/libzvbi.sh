@@ -20,6 +20,9 @@ fi
 mkdir -p _build$ndk_suffix
 cd _build$ndk_suffix
 
+rm -f config.cache
+rm -f ../config.cache
+
 ../configure \
 	CC="$CC" \
 	CXX="$CXX" \
@@ -46,6 +49,7 @@ cd _build$ndk_suffix
 	--disable-proxy \
 	--disable-examples \
 	--disable-tests
+	
 	
 make -j$cores
 make DESTDIR="$prefix_dir" install
