@@ -25,9 +25,12 @@ cd _build$ndk_suffix
 	CXX="$CXX" \
 	AR="$AR" \
 	RANLIB="$RANLIB" \
-	CFLAGS="$CFLAGS -fPIC" \
-	CXXFLAGS="$CXXFLAGS -fPIC" \
-	LDFLAGS="$LDFLAGS" \
+	CFLAGS="$CFLAGS -fPIC -pthread" \
+	CXXFLAGS="$CXXFLAGS -fPIC -pthread" \
+	LDFLAGS="$LDFLAGS -pthread" \
+	LIBS="-lc" \
+	ac_cv_search_pthread_create='none required' \
+	ac_cv_func_pthread_create=yes \
 	--host="$ndk_triple" \
 	--prefix=/ \
 	--with-pic \
