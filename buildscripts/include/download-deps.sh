@@ -65,7 +65,7 @@ HEREDOC
 
 # libzvbi
 if [ ! -d libzvbi ]; then
-    $WGET -O libzvbi.tar.gz https://github.com/zapping-vbi/zvbi/archive/refs/tags/$v_libzvbi.tar.gz
+    $WGET -O libzvbi.tar.gz https://codeload.github.com/zapping-vbi/zvbi/tar.gz/refs/tags/v$v_libzvbi
     tar -xzf libzvbi.tar.gz
     mv zvbi-$v_libzvbi libzvbi
     rm -f libzvbi.tar.gz
