@@ -1,0 +1,50 @@
+--- a/configure.ac
++++ b/configure.ac
+@@ -490,16 +490,23 @@
+ dnl Android: pthreads are provided by bionic/libc and there is no separate
+ dnl -lpthread.  The original fallback probe below used pthread_create()
+ dnl without including <pthread.h>, which can fail with modern Clang.
+-AC_CHECK_LIB([pthread], [pthread_create],,[
+-  AC_CHECK_LIB([pthreadGC2], [pthread_create],,[
+-    AC_LINK_IFELSE(
+-      [AC_LANG_PROGRAM([[]], [[pthread_create();]])],
+-      [],
+-      [
+-        LDFLAGS="$LDFLAGS -pthread"
+-        AC_LINK_IFELSE(
+-          [AC_LANG_PROGRAM([[]], [[pthread_create();]])],
+-          [],
+-          [AC_MSG_ERROR([Unable to link pthread functions])]
+-        )
+-      ]
+-    )
+-  ])
+-])
++AC_CHECK_LIB([pthread], [pthread_create],,[
++  AC_CHECK_LIB([pthreadGC2], [pthread_create],,[
++    AC_LINK_IFELSE(
++      [AC_LANG_PROGRAM(
++        [[#include <pthread.h>
++          static void *zvbi_android_pthread_stub(void *arg) { return arg; }]],
++        [[pthread_t t;
++          pthread_create(&t, 0, zvbi_android_pthread_stub, 0);]]
++      )],
++      [],
++      [
++        save_LDFLAGS="$LDFLAGS"
++        LDFLAGS="$LDFLAGS -pthread"
++        AC_LINK_IFELSE(
++          [AC_LANG_PROGRAM(
++            [[#include <pthread.h>
++              static void *zvbi_android_pthread_stub(void *arg) { return arg; }]],
++            [[pthread_t t;
++              pthread_create(&t, 0, zvbi_android_pthread_stub, 0);]]
++          )],
++          [],
++          [AC_MSG_ERROR([Unable to link pthread functions])]
++        )
++        LDFLAGS="$save_LDFLAGS"
++      ]
++    )
++  ])
++])
