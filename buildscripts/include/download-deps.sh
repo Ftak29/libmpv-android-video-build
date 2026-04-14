@@ -64,6 +64,11 @@ HEREDOC
 # [ ! -d media_kit ] && git clone --depth 1 --branch main https://github.com/media-kit/media-kit.git media_kit
 
 # libzvbi
-[ ! -d libzvbi ] && git clone --depth 1 --branch v$v_libzvbi https://github.com/zapping-vbi/zvbi.git libzvbi
+if [ ! -d libzvbi ]; then
+    $WGET --content-disposition -O libzvbi.tar.bz2 "https://downloads.sourceforge.net/project/zapping/zvbi/$v_libzvbi/zvbi-$v_libzvbi.tar.bz2"
+    tar -xjf libzvbi.tar.bz2
+    mv zvbi-$v_libzvbi libzvbi
+    rm -f libzvbi.tar.bz2
+fi
 
 cd ..
