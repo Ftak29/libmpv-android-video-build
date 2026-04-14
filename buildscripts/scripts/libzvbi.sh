@@ -14,6 +14,44 @@ fi
 
 if [ ! -f configure ]; then
 	command -v autopoint >/dev/null 2>&1 || { echo "autopoint not found; install gettext/autopoint"; exit 1; }
+	python3 - <<'PY'
+	from pathlib import Path
+	p = Path("configure.ac")
+	s = p.read_text()
+	
+	old = """AC_CHECK_LIB([pthread], [pthread_create],,[
+	  AC_CHECK_LIB([pthreadGC2], [pthread_create],,[
+	    AC_LINK_IFELSE([AC_LANG_PROGRAM([[]], [[pthread_create();]])],[],[
+	      dnl same as previous, but use '-pthread' instead of '-lpthread'
+	      LDFLAGS="$LDFLAGS -pthread"
+	      AC_LINK_IFELSE([AC_LANG_PROGRAM([[]], [[pthread_create();]])],[],[
+	        AC_MSG_ERROR([Unable to link pthread functions])
+	      ])
+	    ])
+	  ])
+	])"""
+	
+	new = """AC_CHECK_LIB([pthread], [pthread_create],,[
+	  AC_CHECK_LIB([pthreadGC2], [pthread_create],,[
+	    AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <pthread.h>
+	static void *zvbi_android_pthread_stub(void *arg) { return arg; }]], [[pthread_t t; pthread_create(&t, 0, zvbi_android_pthread_stub, 0);]])],[],[
+	      dnl same as previous, but use '-pthread' instead of '-lpthread'
+	      save_LDFLAGS="$LDFLAGS"
+	      LDFLAGS="$LDFLAGS -pthread"
+	      AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <pthread.h>
+	static void *zvbi_android_pthread_stub(void *arg) { return arg; }]], [[pthread_t t; pthread_create(&t, 0, zvbi_android_pthread_stub, 0);]])],[],[
+	        AC_MSG_ERROR([Unable to link pthread functions])
+	      ])
+	      LDFLAGS="$save_LDFLAGS"
+	    ])
+	  ])
+	])"""
+	
+	if old not in s:
+	    raise SystemExit("pthread block not found in configure.ac")
+	p.write_text(s.replace(old, new, 1))
+	print("Patched configure.ac pthread block")
+	PY	
 	./autogen.sh
 fi
 
