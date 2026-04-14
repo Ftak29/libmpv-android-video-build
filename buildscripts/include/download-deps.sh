@@ -65,10 +65,10 @@ HEREDOC
 
 # libzvbi
 if [ ! -d libzvbi ]; then
-    $WGET --content-disposition -O libzvbi.tar.bz2 "https://downloads.sourceforge.net/project/zapping/zvbi/$v_libzvbi/zvbi-$v_libzvbi.tar.bz2"
-    tar -xjf libzvbi.tar.bz2
+    $WGET -O libzvbi.tar.gz https://github.com/zapping-vbi/zvbi/archive/refs/tags/$v_libzvbi.tar.gz
+    tar -xzf libzvbi.tar.gz
     mv zvbi-$v_libzvbi libzvbi
-    rm -f libzvbi.tar.bz2
+    rm -f libzvbi.tar.gz
 fi
 
 cd ..
