@@ -63,5 +63,7 @@ HEREDOC
 [ ! -d media_kit ] && git clone --depth 1 --single-branch --branch version_1.2.5 https://github.com/bggRGjQaUbCoE/media-kit.git media_kit
 # [ ! -d media_kit ] && git clone --depth 1 --branch main https://github.com/media-kit/media-kit.git media_kit
 
+# libzvbi
+[ ! -d libzvbi ] && git clone --depth 1 --branch v$v_libzvbi https://github.com/zapping-vbi/zvbi.git libzvbi
 
 cd ..
