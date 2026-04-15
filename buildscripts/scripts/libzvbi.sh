@@ -91,6 +91,30 @@ else:
     print("No Linux capture backend filenames found in src/Makefile.am")
 PY
 
+python3 - <<'PY'
+from pathlib import Path
+
+p = Path("Makefile.am")
+s = p.read_text()
+
+old = "SUBDIRS = m4 po src test examples contrib"
+if old in s:
+    s = s.replace(old, "SUBDIRS = m4 po src")
+    p.write_text(s)
+    print("Patched Makefile.am to build only core libzvbi directories for Android")
+else:
+    # fallback: remove contrib/examples/test tokens if present
+    orig = s
+    s = s.replace(" contrib", "")
+    s = s.replace(" examples", "")
+    s = s.replace(" test", "")
+    if s != orig:
+        p.write_text(s)
+        print("Patched Makefile.am to remove contrib/examples/test for Android")
+    else:
+        print("Top-level SUBDIRS line not found in Makefile.am")
+PY
+
 if [ ! -f configure ]; then
 	command -v autopoint >/dev/null 2>&1 || { echo "autopoint not found; install gettext/autopoint"; exit 1; }
 	./autogen.sh
@@ -112,6 +136,8 @@ env \
   ac_cv_search_pthread_create='none required' \
   ac_cv_lib_pthread_pthread_create=no \
   ac_cv_lib_pthreadGC2_pthread_create=no \
+  ac_cv_func_malloc_0_nonnull=yes \
+  ac_cv_func_realloc_0_nonnull=yes \
   CPPFLAGS="$CPPFLAGS -I$prefix_dir/include" \
   CC="$CC" \
   CXX="$CXX" \
