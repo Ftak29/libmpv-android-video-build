@@ -62,6 +62,35 @@ else:
     print("dst_format nl_langinfo assignment not found in src/conv.c")
 PY
 
+python3 - <<'PY'
+from pathlib import Path
+
+p = Path("src/Makefile.am")
+s = p.read_text()
+
+remove = [
+    "io-v4l.c",
+    "io-v4l2.c",
+    "io-v4l2k.c",
+    "io-bktr.c",
+    "io-dvb.c",
+    "dvb_mux.c",
+    "dvb_demux.c",
+]
+
+changed = False
+for name in remove:
+    if name in s:
+        s = s.replace(name, "")
+        changed = True
+
+if changed:
+    p.write_text(s)
+    print("Patched src/Makefile.am to remove Linux capture backends for Android")
+else:
+    print("No Linux capture backend filenames found in src/Makefile.am")
+PY
+
 if [ ! -f configure ]; then
 	command -v autopoint >/dev/null 2>&1 || { echo "autopoint not found; install gettext/autopoint"; exit 1; }
 	./autogen.sh
