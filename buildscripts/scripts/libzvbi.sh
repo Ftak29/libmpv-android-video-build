@@ -56,20 +56,16 @@ env \
   ac_cv_search_pthread_create='none required' \
   ac_cv_lib_pthread_pthread_create=no \
   ac_cv_lib_pthreadGC2_pthread_create=no \
-  ac_cv_header_pthread_h=yes \
-  ac_cv_func_pthread_join=yes \
-  ac_cv_func_pthread_detach=yes \
-  ac_cv_func_pthread_mutex_lock=yes \
-  ac_cv_func_pthread_mutex_unlock=yes \
+  CPPFLAGS="$CPPFLAGS -I$prefix_dir/include" \
+  CC="$CC" \
+  CXX="$CXX" \
+  AR="$AR" \
+  RANLIB="$RANLIB" \
+  CFLAGS="$CFLAGS -fPIC -pthread -I$prefix_dir/include" \
+  CXXFLAGS="$CXXFLAGS -fPIC -pthread -I$prefix_dir/include" \
+  LDFLAGS="$LDFLAGS -pthread -L$prefix_dir/lib" \
+  LIBS="-liconv -lc" \
   ../configure \
-    CC="$CC" \
-    CXX="$CXX" \
-    AR="$AR" \
-    RANLIB="$RANLIB" \
-    CFLAGS="$CFLAGS -fPIC -pthread" \
-    CXXFLAGS="$CXXFLAGS -fPIC -pthread" \
-    LDFLAGS="$LDFLAGS -pthread" \
-    LIBS="-lc" \
     --host="$ndk_triple" \
     --prefix=/ \
     --with-pic \
