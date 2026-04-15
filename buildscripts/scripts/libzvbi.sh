@@ -47,19 +47,19 @@ from pathlib import Path
 p = Path("src/conv.c")
 s = p.read_text()
 
-old = "codeset = nl_langinfo (CODESET);"
+old = "dst_format = nl_langinfo (CODESET);"
 new = """#ifdef __ANDROID__
-\tcodeset = "UTF-8";
+\tdst_format = "UTF-8";
 #else
-\tcodeset = nl_langinfo (CODESET);
+\tdst_format = nl_langinfo (CODESET);
 #endif"""
 
 if old in s:
     s = s.replace(old, new, 1)
     p.write_text(s)
-    print("Patched conv.c nl_langinfo -> UTF-8 fallback for Android")
+    print("Patched conv.c dst_format nl_langinfo -> UTF-8 fallback for Android")
 else:
-    print("nl_langinfo assignment not found in src/conv.c")
+    print("dst_format nl_langinfo assignment not found in src/conv.c")
 PY
 
 if [ ! -f configure ]; then
