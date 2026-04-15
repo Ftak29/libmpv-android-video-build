@@ -115,10 +115,26 @@ else:
         print("Top-level SUBDIRS line not found in Makefile.am")
 PY
 
-if [ ! -f configure ]; then
-	command -v autopoint >/dev/null 2>&1 || { echo "autopoint not found; install gettext/autopoint"; exit 1; }
-	./autogen.sh
-fi
+python3 - <<'PY'
+from pathlib import Path
+
+p = Path("Makefile.am")
+s = p.read_text()
+
+orig = s
+
+# Remove non-library dirs from SUBDIRS
+s = s.replace(" contrib", "")
+s = s.replace(" examples", "")
+s = s.replace(" test", "")
+s = s.replace(" tests", "")
+
+if s != orig:
+    p.write_text(s)
+    print("Patched top-level Makefile.am to remove contrib/examples/test for Android")
+else:
+    print("No contrib/examples/test entries changed in top-level Makefile.am")
+PY
 
 if [ ! -f configure ]; then
 	command -v autopoint >/dev/null 2>&1 || { echo "autopoint not found; install gettext/autopoint"; exit 1; }
