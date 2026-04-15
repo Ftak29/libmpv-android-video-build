@@ -71,4 +71,12 @@ if [ ! -d libzvbi ]; then
     rm -f libzvbi.tar.gz
 fi
 
+# libiconv
+if [ ! -d libiconv ]; then
+    $WGET -O libiconv.tar.gz https://ftpmirror.gnu.org/libiconv/libiconv-$v_libiconv.tar.gz
+    tar -xzf libiconv.tar.gz
+    mv libiconv-$v_libiconv libiconv
+    rm -f libiconv.tar.gz
+fi
+
 cd ..
