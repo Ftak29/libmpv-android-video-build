@@ -178,5 +178,5 @@ env \
     --disable-examples \
     --disable-tests
 	
-make -j$cores
-make DESTDIR="$prefix_dir" install
+make -C src -j$cores
+make -C src DESTDIR="$prefix_dir" install
