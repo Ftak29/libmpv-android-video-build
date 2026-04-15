@@ -20,6 +20,7 @@ v_mpv=0.41.0
 v_libvpx=1.15
 v_libwebp=1.6.0
 v_libzvbi=0.2.44
+v_libiconv=1.18
 
 ## Dependency tree
 # I would've used a dict but putting arrays in a dict is not a thing
@@ -35,4 +36,6 @@ dep_lua=()
 dep_shaderc=()
 dep_libplacebo=()
 dep_mpv=(ffmpeg libass libplacebo)
-dep_libzvbi=()
+dep_libiconv=()
+dep_libzvbi=(libiconv)
+
