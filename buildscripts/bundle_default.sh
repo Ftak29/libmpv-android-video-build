@@ -43,6 +43,47 @@ cd deps/media_kit/media_kit_native_event_loop || exit 1
 
 flutter create --org com.alexmercerind --template plugin_ffi --platforms=android .
 
+python3 - <<'PY'
+from pathlib import Path
+
+files = [
+    Path("android/build.gradle"),
+    Path("android/build.gradle.kts"),
+    Path("example/android/app/build.gradle"),
+    Path("example/android/app/build.gradle.kts"),
+]
+
+for p in files:
+    if not p.exists():
+        continue
+
+    s = p.read_text()
+
+    if "abiFilters" in s:
+        print(f"abiFilters already present in {p}")
+        continue
+
+    if p.suffix == ".kts":
+        s = s.replace(
+            "defaultConfig {",
+            """defaultConfig {
+        ndk {
+            abiFilters += listOf("armeabi-v7a", "arm64-v8a", "x86_64")
+        }"""
+        )
+    else:
+        s = s.replace(
+            "defaultConfig {",
+            """defaultConfig {
+        ndk {
+            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'
+        }"""
+        )
+
+    p.write_text(s)
+    print(f"Added abiFilters to {p}")
+PY
+
 if ! grep -q android "pubspec.yaml"; then
   printf "      android:\n        ffiPlugin: true\n" >> pubspec.yaml
 fi
