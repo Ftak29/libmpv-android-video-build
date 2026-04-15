@@ -180,3 +180,22 @@ env \
 	
 make -C src -j$cores
 make -C src DESTDIR="$prefix_dir" install
+
+make -C src -j$cores
+make -C src DESTDIR="$prefix_dir" install
+
+mkdir -p "$prefix_dir/lib/pkgconfig"
+
+# Copy zvbi pkg-config file into the Android prefix if install did not place it there.
+find . -name 'zvbi-0.2.pc' -exec cp {} "$prefix_dir/lib/pkgconfig/" \; 2>/dev/null || true
+
+pc="$prefix_dir/lib/pkgconfig/zvbi-0.2.pc"
+if [ -f "$pc" ]; then
+  sed -i "s|^prefix=.*|prefix=$prefix_dir|" "$pc"
+  sed -i "s|^libdir=.*|libdir=$prefix_dir/lib|" "$pc"
+  sed -i "s|^includedir=.*|includedir=$prefix_dir/include|" "$pc"
+  echo "Prepared $pc for FFmpeg pkg-config lookup"
+else
+  echo "zvbi-0.2.pc not found after libzvbi install"
+  exit 1
+fi
