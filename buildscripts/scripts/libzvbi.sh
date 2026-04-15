@@ -54,6 +54,8 @@ env \
   ac_cv_header_pthread_h=yes \
   ac_cv_func_pthread_join=yes \
   ac_cv_func_pthread_detach=yes \
+  ac_cv_func_pthread_mutex_lock=yes \
+  ac_cv_func_pthread_mutex_unlock=yes \
   ../configure \
     CC="$CC" \
     CXX="$CXX" \
