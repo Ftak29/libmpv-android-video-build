@@ -21,39 +21,18 @@ from pathlib import Path
 p = Path("configure.ac")
 s = p.read_text()
 
-old = """AC_CHECK_LIB([pthread], [pthread_create],,[
-  AC_CHECK_LIB([pthreadGC2], [pthread_create],,[
-    AC_LINK_IFELSE([AC_LANG_PROGRAM([[]], [[pthread_create();]])],[],[
-      dnl same as previous, but use '-pthread' instead of '-lpthread'
-      LDFLAGS="$LDFLAGS -pthread"
-      AC_LINK_IFELSE([AC_LANG_PROGRAM([[]], [[pthread_create();]])],[],[
-        AC_MSG_ERROR([Unable to link pthread functions])
-      ])
-    ])
-  ])
-])"""
+old = "AC_LANG_PROGRAM([[]], [[pthread_create();]])"
+new = """AC_LANG_PROGRAM([[#include <pthread.h>
+static void *zvbi_android_pthread_stub(void *arg) { return arg; }]], [[pthread_t t; pthread_create(&t, 0, zvbi_android_pthread_stub, 0);]])"""
 
-new = """AC_CHECK_LIB([pthread], [pthread_create],,[
-  AC_CHECK_LIB([pthreadGC2], [pthread_create],,[
-    AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <pthread.h>
-static void *zvbi_android_pthread_stub(void *arg) { return arg; }]], [[pthread_t t; pthread_create(&t, 0, zvbi_android_pthread_stub, 0);]])],[],[
-      dnl same as previous, but use '-pthread' instead of '-lpthread'
-      save_LDFLAGS="$LDFLAGS"
-      LDFLAGS="$LDFLAGS -pthread"
-      AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <pthread.h>
-static void *zvbi_android_pthread_stub(void *arg) { return arg; }]], [[pthread_t t; pthread_create(&t, 0, zvbi_android_pthread_stub, 0);]])],[],[
-        AC_MSG_ERROR([Unable to link pthread functions])
-      ])
-      LDFLAGS="$save_LDFLAGS"
-    ])
-  ])
-])"""
+count = s.count(old)
+if count == 0:
+    raise SystemExit("pthread test expression not found in configure.ac")
 
-if old not in s:
-    raise SystemExit("pthread block not found in configure.ac")
+s = s.replace(old, new)
+p.write_text(s)
 
-p.write_text(s.replace(old, new, 1))
-print("Patched configure.ac pthread block")
+print(f"Patched configure.ac pthread test expression ({count} occurrence(s))")
 PY
 
 if [ ! -f configure ]; then
