@@ -6,14 +6,14 @@ index 9b91c8edf5..8bc93b6f08 100644
   * Gstreamer copyright notice:
   *
   * Copyright (C) 2012, Collabora Ltd.
-- *   Author: Sebastian Dr├╢ge <sebastian.droege@collabora.co.uk>
-+ *   Author: Sebastian Dr├â┬╢ge <sebastian.droege@collabora.co.uk>
+- *   Author: Sebastian Dr+�ge <sebastian.droege@collabora.co.uk>
++ *   Author: Sebastian Dr+�-�ge <sebastian.droege@collabora.co.uk>
   *
-- * Copyright (C) 2012, Rafa├½l Carr├⌐ <funman@videolanorg>
-+ * Copyright (C) 2012, Rafa├â┬½l Carr├â┬⌐ <funman@videolanorg>
+- * Copyright (C) 2012, Rafa+�l Carr+� <funman@videolanorg>
++ * Copyright (C) 2012, Rafa+�-�l Carr+�-� <funman@videolanorg>
   *
-- * Copyright (C) 2015, Sebastian Dr├╢ge <sebastian@centricular.com>
-+ * Copyright (C) 2015, Sebastian Dr├â┬╢ge <sebastian@centricular.com>
+- * Copyright (C) 2015, Sebastian Dr+�ge <sebastian@centricular.com>
++ * Copyright (C) 2015, Sebastian Dr+�-�ge <sebastian@centricular.com>
   *
   * Copyright (C) 2014-2015, Collabora Ltd.
   *   Author: Matthieu Bouron <matthieu.bouron@gcollabora.com>
