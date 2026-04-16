@@ -67,7 +67,6 @@ cpuflags=
 	--enable-runtime-cpudetect \
 	\
 	--enable-mbedtls \
-	--enable-libzvbi \
 	--enable-libdav1d \
 	\
 	--enable-avutil \
