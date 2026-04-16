@@ -6,7 +6,7 @@ set -euo pipefail
 
 PATCHES=(patches/*)
 ROOT=$(pwd)
-EZTV_LIB_VER="EzTvLibA-1.0"
+TVEZ_LIB_VER="TVEZLibA-1.1"
 
 for dep_path in "${PATCHES[@]}"; do
     if [ -d "$dep_path" ]; then
@@ -37,7 +37,7 @@ for dep_path in "${PATCHES[@]}"; do
 
         # Normalize version strings after patching
         if [ "$dep" = "mpv" ]; then
-            printf '%s\n' "$EZTV_LIB_VER $v_mpv" > MPV_VERSION
+            printf '%s\n' "$TVEZ_LIB_VER $v_mpv" > MPV_VERSION
             rm -rf .git
         fi
 
