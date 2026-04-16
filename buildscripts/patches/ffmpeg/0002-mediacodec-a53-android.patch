@@ -1,3 +1,150 @@
+diff --git a/libavcodec/mediacodecdec.c b/libavcodec/mediacodecdec.c
+index ea9362ba85..9a71d24fe1 100644
+--- a/libavcodec/mediacodecdec.c
++++ b/libavcodec/mediacodecdec.c
+@@ -45,6 +45,45 @@
+ #include "mediacodec_wrapper.h"
+ #include "mediacodecdec_common.h"
+ 
++#ifdef __ANDROID__
++#include <android/log.h>
++#define MCINDBG(...) __android_log_print(ANDROID_LOG_ERROR, "MC_A53INDBG", __VA_ARGS__)
++#else
++#define MCINDBG(...) do {} while (0)
++#endif
++
++static void log_packet_a53_side_data(const AVPacket *pkt, const char *where)
++{
++    const uint8_t *sd = NULL;
++    size_t sd_size = 0;
++
++    if (!pkt) {
++        MCINDBG("%s: pkt=NULL", where);
++        return;
++    }
++
++    sd = av_packet_get_side_data(pkt, AV_PKT_DATA_A53_CC, &sd_size);
++
++    MCINDBG("%s: pkt pts=%" PRId64 " dts=%" PRId64 " size=%d a53=%s sd_size=%d",
++            where,
++            pkt->pts, pkt->dts, pkt->size,
++            sd ? "yes" : "no",
++            (int)sd_size);
++
++    if (sd && sd_size > 0) {
++        int n = sd_size < 8 ? (int)sd_size : 8;
++        char buf[128] = {0};
++        int off = 0;
++        for (int i = 0; i < n; i++) {
++            off += snprintf(buf + off, sizeof(buf) - off, "%02X ", sd[i]);
++            if (off >= (int)sizeof(buf))
++                break;
++        }
++        MCINDBG("%s: first A53 bytes: %s", where, buf);
++    }
++}
++
++
+ typedef struct MediaCodecH264DecContext {
+ 
+     AVClass *avclass;
+@@ -495,6 +534,8 @@ static int mediacodec_receive_frame(AVCodecContext *avctx, AVFrame *frame)
+     /* In delay_flush mode, wait until the user has released or rendered
+        all retained frames. */
+     if (s->delay_flush && ff_mediacodec_dec_is_flushing(avctx, s->ctx)) {
++        MCINDBG("receive_frame: flushing delayed current_input_buffer=%zd draining=%d",
++                s->ctx->current_input_buffer, s->ctx->draining);
+         if (!ff_mediacodec_dec_flush(avctx, s->ctx)) {
+             return AVERROR(EAGAIN);
+         }
+@@ -502,8 +543,11 @@ static int mediacodec_receive_frame(AVCodecContext *avctx, AVFrame *frame)
+ 
+     /* poll for new frame */
+     ret = ff_mediacodec_dec_receive(avctx, s->ctx, frame, false);
+-    if (ret != AVERROR(EAGAIN))
++    if (ret != AVERROR(EAGAIN)) {
++        MCINDBG("receive_frame: immediate receive ret=%d frame_pts=%" PRId64,
++                ret, ret >= 0 ? frame->pts : AV_NOPTS_VALUE);
+         return ret;
++    }
+ 
+     /* feed decoder */
+     while (1) {
+@@ -511,8 +555,12 @@ static int mediacodec_receive_frame(AVCodecContext *avctx, AVFrame *frame)
+             /* poll for input space */
+             index = ff_AMediaCodec_dequeueInputBuffer(s->ctx->codec, 0);
+             if (index < 0) {
++                MCINDBG("receive_frame: no input buffer index=%zd draining=%d",
++                        index, s->ctx->draining);
+                 /* no space, block for an output frame to appear */
+                 ret = ff_mediacodec_dec_receive(avctx, s->ctx, frame, true);
++                MCINDBG("receive_frame: blocked receive ret=%d frame_pts=%" PRId64,
++                        ret, ret >= 0 ? frame->pts : AV_NOPTS_VALUE);
+                 /* Try again if both input port and output port return EAGAIN.
+                  * If no data is consumed and no frame in output, it can make
+                  * both avcodec_send_packet() and avcodec_receive_frame()
+@@ -524,22 +572,31 @@ static int mediacodec_receive_frame(AVCodecContext *avctx, AVFrame *frame)
+                 return ret;
+             }
+             s->ctx->current_input_buffer = index;
++            MCINDBG("receive_frame: got input buffer index=%zd", index);
+         }
+ 
+         /* try to flush any buffered packet data */
+         if (s->buffered_pkt.size > 0) {
++            log_packet_a53_side_data(&s->buffered_pkt, "buffered_before_send");
+             ret = ff_mediacodec_dec_send(avctx, s->ctx, &s->buffered_pkt, false);
++            MCINDBG("receive_frame: send buffered ret=%d pkt_pts=%" PRId64 " remaining_before=%d",
++                    ret, s->buffered_pkt.pts, s->buffered_pkt.size);
+             if (ret >= 0) {
+                 s->buffered_pkt.size -= ret;
+                 s->buffered_pkt.data += ret;
+                 if (s->buffered_pkt.size <= 0) {
++                    MCINDBG("receive_frame: buffered packet fully sent pts=%" PRId64,
++                            s->buffered_pkt.pts);
+                     av_packet_unref(&s->buffered_pkt);
+                 } else {
+                     av_log(avctx, AV_LOG_WARNING,
+                            "could not send entire packet in single input buffer (%d < %d)\n",
+                            ret, s->buffered_pkt.size+ret);
++                    MCINDBG("receive_frame: buffered packet partial send remaining=%d",
++                            s->buffered_pkt.size);
+                 }
+             } else if (ret < 0 && ret != AVERROR(EAGAIN)) {
++                MCINDBG("receive_frame: send buffered hard error ret=%d", ret);
+                 return ret;
+             }
+ 
+@@ -555,15 +612,27 @@ static int mediacodec_receive_frame(AVCodecContext *avctx, AVFrame *frame)
+         ret = ff_decode_get_packet(avctx, &s->buffered_pkt);
+         if (ret == AVERROR_EOF) {
+             AVPacket null_pkt = { 0 };
++            MCINDBG("receive_frame: decoder input EOF, sending null packet");
+             ret = ff_mediacodec_dec_send(avctx, s->ctx, &null_pkt, true);
++            MCINDBG("receive_frame: null packet send ret=%d", ret);
+             if (ret < 0)
+                 return ret;
+-            return ff_mediacodec_dec_receive(avctx, s->ctx, frame, true);
++            ret = ff_mediacodec_dec_receive(avctx, s->ctx, frame, true);
++            MCINDBG("receive_frame: receive after EOF ret=%d frame_pts=%" PRId64,
++                    ret, ret >= 0 ? frame->pts : AV_NOPTS_VALUE);
++            return ret;
+         } else if (ret == AVERROR(EAGAIN) && s->ctx->current_input_buffer < 0) {
+-            return ff_mediacodec_dec_receive(avctx, s->ctx, frame, true);
++            MCINDBG("receive_frame: get_packet EAGAIN with no input buffer, forcing receive");
++            ret = ff_mediacodec_dec_receive(avctx, s->ctx, frame, true);
++            MCINDBG("receive_frame: forced receive ret=%d frame_pts=%" PRId64,
++                    ret, ret >= 0 ? frame->pts : AV_NOPTS_VALUE);
++            return ret;
+         } else if (ret < 0) {
++            MCINDBG("receive_frame: get_packet hard error ret=%d", ret);
+             return ret;
+         }
++
++        log_packet_a53_side_data(&s->buffered_pkt, "fetched_packet");
+     }
+ 
+     return AVERROR(EAGAIN);
 diff --git a/libavcodec/mediacodecdec_common.c b/libavcodec/mediacodecdec_common.c
 index 9b91c8edf5..3ba83eb29e 100644
 --- a/libavcodec/mediacodecdec_common.c
