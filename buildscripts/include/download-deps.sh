@@ -63,20 +63,4 @@ HEREDOC
 [ ! -d media_kit ] && git clone --depth 1 --single-branch --branch version_1.2.5 https://github.com/bggRGjQaUbCoE/media-kit.git media_kit
 # [ ! -d media_kit ] && git clone --depth 1 --branch main https://github.com/media-kit/media-kit.git media_kit
 
-# libzvbi
-if [ ! -d libzvbi ]; then
-    $WGET -O libzvbi.tar.gz https://codeload.github.com/zapping-vbi/zvbi/tar.gz/refs/tags/v$v_libzvbi
-    tar -xzf libzvbi.tar.gz
-    mv zvbi-$v_libzvbi libzvbi
-    rm -f libzvbi.tar.gz
-fi
-
-# libiconv
-if [ ! -d libiconv ]; then
-    $WGET -O libiconv.tar.gz https://ftpmirror.gnu.org/libiconv/libiconv-$v_libiconv.tar.gz
-    tar -xzf libiconv.tar.gz
-    mv libiconv-$v_libiconv libiconv
-    rm -f libiconv.tar.gz
-fi
-
 cd ..
