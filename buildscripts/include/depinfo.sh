@@ -25,7 +25,7 @@ v_libwebp=1.6.0
 
 dep_mbedtls=()
 dep_dav1d=()
-dep_ffmpeg=(mbedtls dav1d libvpx libx264 libwebp libzvbi)
+dep_ffmpeg=(mbedtls dav1d libvpx libx264 libwebp)
 dep_freetype2=()
 dep_fribidi=()
 dep_harfbuzz=()
