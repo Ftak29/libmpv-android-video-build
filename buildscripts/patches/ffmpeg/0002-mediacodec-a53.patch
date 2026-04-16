@@ -1,23 +1,8 @@
 diff --git a/libavcodec/mediacodecdec_common.c b/libavcodec/mediacodecdec_common.c
-index 9b91c8edf5..8bc93b6f08 100644
+index 9b91c8edf5..3c790fbaa2 100644
 --- a/libavcodec/mediacodecdec_common.c
 +++ b/libavcodec/mediacodecdec_common.c
-@@ -53,11 +53,11 @@
-  * Gstreamer copyright notice:
-  *
-  * Copyright (C) 2012, Collabora Ltd.
-- *   Author: Sebastian Dr+¦ge <sebastian.droege@collabora.co.uk>
-+ *   Author: Sebastian Dr+â-¦ge <sebastian.droege@collabora.co.uk>
-  *
-- * Copyright (C) 2012, Rafa+½l Carr+¬ <funman@videolanorg>
-+ * Copyright (C) 2012, Rafa+â-½l Carr+â-¬ <funman@videolanorg>
-  *
-- * Copyright (C) 2015, Sebastian Dr+¦ge <sebastian@centricular.com>
-+ * Copyright (C) 2015, Sebastian Dr+â-¦ge <sebastian@centricular.com>
-  *
-  * Copyright (C) 2014-2015, Collabora Ltd.
-  *   Author: Matthieu Bouron <matthieu.bouron@gcollabora.com>
-@@ -83,6 +83,11 @@
+@@ -83,6 +83,36 @@
   *
   */
  
@@ -26,13 +11,6 @@ index 9b91c8edf5..8bc93b6f08 100644
 +#define MCDBG(...) __android_log_print(ANDROID_LOG_ERROR, "MC_A53DBG", __VA_ARGS__)
 +#endif
 +
- #define INPUT_DEQUEUE_TIMEOUT_US 8000
- #define OUTPUT_DEQUEUE_TIMEOUT_US 8000
- #define OUTPUT_DEQUEUE_BLOCK_TIMEOUT_US 1000000
-@@ -109,6 +114,31 @@ static const struct {
-     { 0 }
- };
- 
 +static void log_a53_side_data(AVFrame *frame, const char *where)
 +{
 +#ifdef __ANDROID__
@@ -58,22 +36,6 @@ index 9b91c8edf5..8bc93b6f08 100644
 +#endif
 +}
 +
- static enum AVSampleFormat mcdec_map_pcm_format(AVCodecContext *avctx,
-                                                MediaCodecDecContext *s,
-                                                int pcm_format)
-@@ -356,6 +386,7 @@ static int mediacodec_wrap_hw_buffer(AVCodecContext *avctx,
-             "Wrapping output buffer %zd (%p) ts=%"PRId64" [%d pending]\n",
-             buffer->index, buffer, buffer->pts, atomic_load(&s->hw_buffer_count));
- 
-+    log_a53_side_data(frame, "wrap_hw_buffer");
-     return 0;
- fail:
-     av_freep(&buffer);
-@@ -516,6 +547,7 @@ done:
-         ret = AVERROR_EXTERNAL;
-     }
- 
-+    log_a53_side_data(frame, "wrap_sw_video_buffer");
-     return ret;
- }
- 
+ #define INPUT_DEQUEUE_TIMEOUT_US 8000
+ #define OUTPUT_DEQUEUE_TIMEOUT_US 8000
+ #define OUTPUT_DEQUEUE_BLOCK_TIMEOUT_US 1000000
