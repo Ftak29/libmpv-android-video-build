@@ -1,0 +1,70 @@
+diff --git a/libavcodec/mediacodecdec_common.c b/libavcodec/mediacodecdec_common.c
+index 9b91c8edf5..3ba83eb29e 100644
+--- a/libavcodec/mediacodecdec_common.c
++++ b/libavcodec/mediacodecdec_common.c
+@@ -83,6 +83,38 @@
+  *
+  */
+ 
++#ifdef __ANDROID__
++#include <android/log.h>
++#define MCDBG(...) __android_log_print(ANDROID_LOG_ERROR, "MC_A53DBG", __VA_ARGS__)
++#else
++#define MCDBG(...) do {} while (0)
++#endif
++
++static void log_a53_side_data(AVFrame *frame, const char *where)
++{
++#ifdef __ANDROID__
++    AVFrameSideData *sd = av_frame_get_side_data(frame, AV_FRAME_DATA_A53_CC);
++    if (!sd) {
++        MCDBG("%s: A53_CC side data = NULL", where);
++        return;
++    }
++
++    MCDBG("%s: A53_CC size=%d", where, (int)sd->size);
++
++    if (sd->data && sd->size > 0) {
++        int n = sd->size < 8 ? (int)sd->size : 8;
++        char buf[128];
++        int off = 0;
++        for (int i = 0; i < n; i++) {
++            off += snprintf(buf + off, sizeof(buf) - off, "%02X ", sd->data[i]);
++            if (off >= (int)sizeof(buf))
++                break;
++        }
++        MCDBG("%s: A53_CC first bytes: %s", where, buf);
++    }
++#endif
++}
++
+ #define INPUT_DEQUEUE_TIMEOUT_US 8000
+ #define OUTPUT_DEQUEUE_TIMEOUT_US 8000
+ #define OUTPUT_DEQUEUE_BLOCK_TIMEOUT_US 1000000
+@@ -355,7 +387,7 @@ static int mediacodec_wrap_hw_buffer(AVCodecContext *avctx,
+     av_log(avctx, AV_LOG_DEBUG,
+             "Wrapping output buffer %zd (%p) ts=%"PRId64" [%d pending]\n",
+             buffer->index, buffer, buffer->pts, atomic_load(&s->hw_buffer_count));
+-
++    log_a53_side_data(frame, "wrap_hw_buffer");
+     return 0;
+ fail:
+     av_freep(&buffer);
+@@ -364,7 +396,7 @@ fail:
+         av_log(avctx, AV_LOG_ERROR, "Failed to release output buffer\n");
+         ret = AVERROR_EXTERNAL;
+     }
+-
++    log_a53_side_data(frame, "wrap_hw_buffer fail");
+     return ret;
+ }
+ 
+@@ -515,7 +547,7 @@ done:
+         av_log(avctx, AV_LOG_ERROR, "Failed to release output buffer\n");
+         ret = AVERROR_EXTERNAL;
+     }
+-
++    log_a53_side_data(frame, "wrap_sw_video_buffer");
+     return ret;
+ }
+ 
