@@ -1,0 +1,480 @@
+diff --git a/libavcodec/mediacodecdec.c b/libavcodec/mediacodecdec.c
+index bc176d8..eb602c2 100644
+--- a/libavcodec/mediacodecdec.c
++++ b/libavcodec/mediacodecdec.c
+@@ -26,7 +26,9 @@
+ #include <string.h>
+ 
+ #include "libavutil/avassert.h"
++#include "libavutil/buffer.h"
+ #include "libavutil/common.h"
++#include "libavutil/error.h"
+ #include "libavutil/mem.h"
+ #include "libavutil/opt.h"
+ #include "libavutil/intreadwrite.h"
+@@ -53,6 +55,14 @@ typedef struct MediaCodecH264DecContext {
+ 
+     AVPacket buffered_pkt;
+ 
++#define MEDIACODEC_A53_CC_RING_SIZE 128
++    struct {
++        int64_t pts_us;
++        AVBufferRef *buf;
++    } a53_cc[MEDIACODEC_A53_CC_RING_SIZE];
++    unsigned a53_cc_next;
++    int a53_cc_seen;
++
+     int delay_flush;
+     int amlogic_mpeg2_api23_workaround;
+ 
+@@ -61,6 +71,386 @@ typedef struct MediaCodecH264DecContext {
+     int operating_rate;
+ } MediaCodecH264DecContext;
+ 
++
++#if CONFIG_H264_MEDIACODEC_DECODER
++#define MEDIACODEC_H264_SEI_TYPE_USER_DATA_REGISTERED_ITU_T_T35 4
++
++static int64_t mediacodec_pts_to_us(const AVCodecContext *avctx, int64_t pts)
++{
++    if (pts == AV_NOPTS_VALUE)
++        return AV_NOPTS_VALUE;
++    if (avctx->pkt_timebase.num && avctx->pkt_timebase.den)
++        return av_rescale_q(pts, avctx->pkt_timebase, AV_TIME_BASE_Q);
++    return pts;
++}
++
++static int mediacodec_parse_a53_cc_payload(AVBufferRef **pbuf,
++                                           const uint8_t *data,
++                                           int size)
++{
++    AVBufferRef *buf = *pbuf;
++    size_t old_size = buf ? buf->size : 0;
++    size_t new_size;
++    const uint8_t *cc;
++    uint8_t *out;
++    int ret, cc_count, out_count = 0;
++
++    if (size < 3)
++        return AVERROR_INVALIDDATA;
++
++    /* ATSC A/53 user_data_type_code for closed captions. */
++    if (data[0] != 0x03)
++        return 0;
++
++    /* process_cc_data_flag */
++    if (!(data[1] & 0x40))
++        return 0;
++
++    cc_count = data[1] & 0x1f;
++    if (!cc_count)
++        return 0;
++
++    /* 3 header bytes + 3 bytes per CC packet + marker byte. */
++    if (cc_count * 3 >= size - 3)
++        return AVERROR_INVALIDDATA;
++
++    cc = data + 3;
++
++    /*
++     * Keep only valid CEA-608 field 1 / CC1 packets.
++     * A53 cc_data byte layout:
++     *   bit 2: cc_valid
++     *   bits 1..0: cc_type
++     * cc_type 0 = NTSC field 1, cc_type 1 = field 2, 2/3 = DTVCC packet data.
++     */
++    for (int i = 0; i < cc_count; i++) {
++        int cc_valid = !!(cc[i * 3] & 0x04);
++        int cc_type  = cc[i * 3] & 0x03;
++
++        if (cc_valid && cc_type == 0)
++            out_count++;
++    }
++
++    if (!out_count)
++        return 0;
++
++    new_size = old_size + out_count * 3;
++    if (new_size > INT_MAX)
++        return AVERROR_INVALIDDATA;
++
++    ret = av_buffer_realloc(pbuf, new_size);
++    if (ret < 0)
++        return ret;
++
++    buf = *pbuf;
++    out = buf->data + old_size;
++
++    for (int i = 0; i < cc_count; i++) {
++        int cc_valid = !!(cc[i * 3] & 0x04);
++        int cc_type  = cc[i * 3] & 0x03;
++
++        if (cc_valid && cc_type == 0) {
++            memcpy(out, cc + i * 3, 3);
++            out += 3;
++        }
++    }
++
++    return out_count;
++}
++
++static int mediacodec_h264_parse_t35_for_a53_cc(AVBufferRef **a53_cc,
++                                                const uint8_t *data,
++                                                int size)
++{
++    /*
++     * H.264 SEI user_data_registered_itu_t_t35 for ATSC captions:
++     *   country_code       0xb5
++     *   provider_code      0x0031
++     *   user_identifier    "GA94"
++     *   user_data_type     0x03
++     *   cc_data...
++     */
++    if (size < 8)
++        return 0;
++
++    if (data[0] != 0xb5 || data[1] != 0x00 || data[2] != 0x31)
++        return 0;
++
++    if (data[3] != 'G' || data[4] != 'A' || data[5] != '9' || data[6] != '4')
++        return 0;
++
++    return mediacodec_parse_a53_cc_payload(a53_cc, data + 7, size - 7);
++}
++
++static int mediacodec_h264_ebsp_to_rbsp(const uint8_t *src, int src_size,
++                                        uint8_t **dst, int *dst_size)
++{
++    uint8_t *out;
++    int zeros = 0;
++    int j = 0;
++
++    out = av_mallocz(src_size + AV_INPUT_BUFFER_PADDING_SIZE);
++    if (!out)
++        return AVERROR(ENOMEM);
++
++    for (int i = 0; i < src_size; i++) {
++        if (zeros == 2 && src[i] == 0x03 && i + 1 < src_size && src[i + 1] <= 0x03) {
++            zeros = 0;
++            continue;
++        }
++
++        out[j++] = src[i];
++        if (src[i] == 0)
++            zeros++;
++        else
++            zeros = 0;
++    }
++
++    *dst = out;
++    *dst_size = j;
++    return 0;
++}
++
++static int mediacodec_h264_sei_trailing_bits(const uint8_t *p, const uint8_t *end)
++{
++    if (p >= end || *p != 0x80)
++        return 0;
++
++    for (p++; p < end; p++) {
++        if (*p)
++            return 0;
++    }
++    return 1;
++}
++
++static int mediacodec_h264_parse_sei_rbsp(AVBufferRef **a53_cc,
++                                          const uint8_t *rbsp,
++                                          int rbsp_size)
++{
++    const uint8_t *p = rbsp;
++    const uint8_t *end = rbsp + rbsp_size;
++    int ret = 0;
++
++    while (p < end) {
++        int payload_type = 0;
++        int payload_size = 0;
++
++        if (mediacodec_h264_sei_trailing_bits(p, end))
++            break;
++
++        while (p < end && *p == 0xff) {
++            payload_type += 255;
++            p++;
++        }
++        if (p >= end)
++            break;
++        payload_type += *p++;
++
++        while (p < end && *p == 0xff) {
++            payload_size += 255;
++            p++;
++        }
++        if (p >= end)
++            break;
++        payload_size += *p++;
++
++        if (payload_size < 0 || payload_size > end - p)
++            return AVERROR_INVALIDDATA;
++
++        if (payload_type == MEDIACODEC_H264_SEI_TYPE_USER_DATA_REGISTERED_ITU_T_T35) {
++            ret = mediacodec_h264_parse_t35_for_a53_cc(a53_cc, p, payload_size);
++            if (ret < 0)
++                return ret;
++        }
++
++        p += payload_size;
++    }
++
++    return 0;
++}
++
++static const uint8_t *mediacodec_h264_find_start_code(const uint8_t *p,
++                                                       const uint8_t *end,
++                                                       const uint8_t **nal)
++{
++    while (p + 3 <= end) {
++        if (p[0] == 0 && p[1] == 0 && p[2] == 1) {
++            *nal = p + 3;
++            return p;
++        }
++        if (p + 4 <= end && p[0] == 0 && p[1] == 0 && p[2] == 0 && p[3] == 1) {
++            *nal = p + 4;
++            return p;
++        }
++        p++;
++    }
++
++    *nal = end;
++    return end;
++}
++
++static int mediacodec_h264_extract_a53_cc(AVBufferRef **a53_cc,
++                                          const uint8_t *data,
++                                          int size)
++{
++    const uint8_t *p = data;
++    const uint8_t *end = data + size;
++    const uint8_t *nal = NULL;
++    const uint8_t *sc = NULL;
++    int ret = 0;
++
++    while ((sc = mediacodec_h264_find_start_code(p, end, &nal)) < end) {
++        const uint8_t *next_nal = NULL;
++        const uint8_t *next_sc;
++        const uint8_t *nal_end;
++        uint8_t *rbsp = NULL;
++        int rbsp_size = 0;
++
++        next_sc = mediacodec_h264_find_start_code(nal, end, &next_nal);
++        nal_end = next_sc;
++
++        while (nal_end > nal && nal_end[-1] == 0)
++            nal_end--;
++
++        if (nal_end > nal && (nal[0] & 0x1f) == 6) {
++            ret = mediacodec_h264_ebsp_to_rbsp(nal + 1, nal_end - nal - 1,
++                                               &rbsp, &rbsp_size);
++            if (ret < 0)
++                return ret;
++
++            ret = mediacodec_h264_parse_sei_rbsp(a53_cc, rbsp, rbsp_size);
++            av_freep(&rbsp);
++            if (ret < 0)
++                return ret;
++        }
++
++        p = next_sc;
++    }
++
++    return 0;
++}
++
++static int mediacodec_a53_cc_queue_packet(AVCodecContext *avctx,
++                                          MediaCodecH264DecContext *s,
++                                          const AVPacket *pkt)
++{
++    AVBufferRef *a53_cc = NULL;
++    size_t side_size = 0;
++    const uint8_t *side;
++    int64_t pts, pts_us;
++    int ret;
++
++    if (avctx->codec_id != AV_CODEC_ID_H264 || !pkt || pkt->size <= 0)
++        return 0;
++
++    pts = pkt->pts != AV_NOPTS_VALUE ? pkt->pts : pkt->dts;
++    pts_us = mediacodec_pts_to_us(avctx, pts);
++    if (pts_us == AV_NOPTS_VALUE)
++        return 0;
++
++    side = av_packet_get_side_data(pkt, AV_PKT_DATA_A53_CC, &side_size);
++    if (side && side_size) {
++        a53_cc = av_buffer_alloc(side_size);
++        if (!a53_cc)
++            return AVERROR(ENOMEM);
++        memcpy(a53_cc->data, side, side_size);
++    } else {
++        ret = mediacodec_h264_extract_a53_cc(&a53_cc, pkt->data, pkt->size);
++        if (ret < 0) {
++            av_log(avctx, AV_LOG_DEBUG, "Could not parse H.264 SEI A53 CC: %s\n",
++                   av_err2str(ret));
++            av_buffer_unref(&a53_cc);
++            return 0;
++        }
++    }
++
++    if (a53_cc) {
++        unsigned idx = s->a53_cc_next++ % MEDIACODEC_A53_CC_RING_SIZE;
++
++        av_buffer_unref(&s->a53_cc[idx].buf);
++        s->a53_cc[idx].pts_us = pts_us;
++        s->a53_cc[idx].buf = a53_cc;
++
++        if (!s->a53_cc_seen) {
++            av_log(avctx, AV_LOG_INFO,
++                   "Detected A53 closed captions in H.264 stream before MediaCodec decode\n");
++            s->a53_cc_seen = 1;
++        }
++    }
++
++    return 0;
++}
++
++static int mediacodec_a53_cc_attach_frame(AVCodecContext *avctx,
++                                          MediaCodecH264DecContext *s,
++                                          AVFrame *frame)
++{
++    int64_t pts_us;
++    int best = -1;
++    int64_t best_delta = INT64_MAX;
++
++    if (avctx->codec_id != AV_CODEC_ID_H264 || !frame ||
++        av_frame_get_side_data(frame, AV_FRAME_DATA_A53_CC))
++        return 0;
++
++    pts_us = mediacodec_pts_to_us(avctx, frame->pts);
++    if (pts_us == AV_NOPTS_VALUE)
++        return 0;
++
++    for (int i = 0; i < MEDIACODEC_A53_CC_RING_SIZE; i++) {
++        int64_t delta;
++
++        if (!s->a53_cc[i].buf)
++            continue;
++
++        delta = FFABS(s->a53_cc[i].pts_us - pts_us);
++        if (delta < best_delta) {
++            best_delta = delta;
++            best = i;
++            if (!delta)
++                break;
++        }
++    }
++
++    /* Packet and output timestamps should usually match exactly after rescale. */
++    if (best >= 0 && best_delta <= 2) {
++        AVBufferRef *ref = av_buffer_ref(s->a53_cc[best].buf);
++
++        if (!ref)
++            return AVERROR(ENOMEM);
++        if (!av_frame_new_side_data_from_buf(frame, AV_FRAME_DATA_A53_CC, ref)) {
++            av_buffer_unref(&ref);
++            return AVERROR(ENOMEM);
++        }
++
++        av_buffer_unref(&s->a53_cc[best].buf);
++    }
++
++    return 0;
++}
++
++static int mediacodec_dec_receive_with_a53_cc(AVCodecContext *avctx,
++                                              MediaCodecH264DecContext *s,
++                                              AVFrame *frame,
++                                              bool wait)
++{
++    int ret = ff_mediacodec_dec_receive(avctx, s->ctx, frame, wait);
++
++    if (ret == 0) {
++        int cc_ret = mediacodec_a53_cc_attach_frame(avctx, s, frame);
++        if (cc_ret < 0)
++            return cc_ret;
++    }
++
++    return ret;
++}
++#define MEDIACODEC_DEC_RECEIVE(avctx, s, frame, wait) \
++    mediacodec_dec_receive_with_a53_cc(avctx, s, frame, wait)
++#else
++#define MEDIACODEC_DEC_RECEIVE(avctx, s, frame, wait) \
++    ff_mediacodec_dec_receive(avctx, (s)->ctx, frame, wait)
++#endif
++
+ static av_cold int mediacodec_decode_close(AVCodecContext *avctx)
+ {
+     MediaCodecH264DecContext *s = avctx->priv_data;
+@@ -68,6 +458,11 @@ static av_cold int mediacodec_decode_close(AVCodecContext *avctx)
+     ff_mediacodec_dec_close(avctx, s->ctx);
+     s->ctx = NULL;
+ 
++#if CONFIG_H264_MEDIACODEC_DECODER
++    for (int i = 0; i < MEDIACODEC_A53_CC_RING_SIZE; i++)
++        av_buffer_unref(&s->a53_cc[i].buf);
++#endif
++
+     av_packet_unref(&s->buffered_pkt);
+ 
+     return 0;
+@@ -501,7 +896,7 @@ static int mediacodec_receive_frame(AVCodecContext *avctx, AVFrame *frame)
+     }
+ 
+     /* poll for new frame */
+-    ret = ff_mediacodec_dec_receive(avctx, s->ctx, frame, false);
++    ret = MEDIACODEC_DEC_RECEIVE(avctx, s, frame, false);
+     if (ret != AVERROR(EAGAIN))
+         return ret;
+ 
+@@ -512,7 +907,7 @@ static int mediacodec_receive_frame(AVCodecContext *avctx, AVFrame *frame)
+             index = ff_AMediaCodec_dequeueInputBuffer(s->ctx->codec, 0);
+             if (index < 0) {
+                 /* no space, block for an output frame to appear */
+-                ret = ff_mediacodec_dec_receive(avctx, s->ctx, frame, true);
++                ret = MEDIACODEC_DEC_RECEIVE(avctx, s, frame, true);
+                 /* Try again if both input port and output port return EAGAIN.
+                  * If no data is consumed and no frame in output, it can make
+                  * both avcodec_send_packet() and avcodec_receive_frame()
+@@ -558,12 +953,18 @@ static int mediacodec_receive_frame(AVCodecContext *avctx, AVFrame *frame)
+             ret = ff_mediacodec_dec_send(avctx, s->ctx, &null_pkt, true);
+             if (ret < 0)
+                 return ret;
+-            return ff_mediacodec_dec_receive(avctx, s->ctx, frame, true);
++            return MEDIACODEC_DEC_RECEIVE(avctx, s, frame, true);
+         } else if (ret == AVERROR(EAGAIN) && s->ctx->current_input_buffer < 0) {
+-            return ff_mediacodec_dec_receive(avctx, s->ctx, frame, true);
++            return MEDIACODEC_DEC_RECEIVE(avctx, s, frame, true);
+         } else if (ret < 0) {
+             return ret;
+         }
++
++#if CONFIG_H264_MEDIACODEC_DECODER
++        ret = mediacodec_a53_cc_queue_packet(avctx, s, &s->buffered_pkt);
++        if (ret < 0)
++            return ret;
++#endif
+     }
+ 
+     return AVERROR(EAGAIN);
+@@ -575,6 +976,12 @@ static void mediacodec_decode_flush(AVCodecContext *avctx)
+ 
+     av_packet_unref(&s->buffered_pkt);
+ 
++#if CONFIG_H264_MEDIACODEC_DECODER
++    for (int i = 0; i < MEDIACODEC_A53_CC_RING_SIZE; i++)
++        av_buffer_unref(&s->a53_cc[i].buf);
++    s->a53_cc_next = 0;
++#endif
++
+     ff_mediacodec_dec_flush(avctx, s->ctx);
+ }
+ 
