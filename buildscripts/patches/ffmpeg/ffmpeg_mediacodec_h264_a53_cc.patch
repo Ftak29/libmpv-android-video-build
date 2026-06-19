@@ -1,5 +1,5 @@
 diff --git a/libavcodec/mediacodecdec.c b/libavcodec/mediacodecdec.c
-index bc176d8..eb602c2 100644
+index bc176d8..9ff3ffe 100644
 --- a/libavcodec/mediacodecdec.c
 +++ b/libavcodec/mediacodecdec.c
 @@ -26,7 +26,9 @@
@@ -27,7 +27,7 @@ index bc176d8..eb602c2 100644
      int delay_flush;
      int amlogic_mpeg2_api23_workaround;
  
-@@ -61,6 +71,386 @@ typedef struct MediaCodecH264DecContext {
+@@ -61,6 +71,445 @@ typedef struct MediaCodecH264DecContext {
      int operating_rate;
  } MediaCodecH264DecContext;
  
@@ -111,6 +111,56 @@ index bc176d8..eb602c2 100644
 +
 +        if (cc_valid && cc_type == 0) {
 +            memcpy(out, cc + i * 3, 3);
++            out += 3;
++        }
++    }
++
++    return out_count;
++}
++
++static int mediacodec_filter_a53_cc_triples(AVBufferRef **pbuf,
++                                             const uint8_t *data,
++                                             size_t size)
++{
++    AVBufferRef *buf = *pbuf;
++    size_t old_size = buf ? buf->size : 0;
++    size_t new_size;
++    uint8_t *out;
++    int out_count = 0;
++    int ret;
++
++    if (!data || size < 3)
++        return 0;
++
++    if (size % 3)
++        return AVERROR_INVALIDDATA;
++
++    for (size_t i = 0; i < size / 3; i++) {
++        int cc_valid = !!(data[i * 3] & 0x04);
++        int cc_type  = data[i * 3] & 0x03;
++
++        if (cc_valid && cc_type == 0)
++            out_count++;
++    }
++
++    if (!out_count)
++        return 0;
++
++    new_size = old_size + out_count * 3;
++    if (new_size > INT_MAX)
++        return AVERROR_INVALIDDATA;
++
++    ret = av_buffer_realloc(pbuf, new_size);
++    if (ret < 0)
++        return ret;
++
++    out = (*pbuf)->data + old_size;
++    for (size_t i = 0; i < size / 3; i++) {
++        int cc_valid = !!(data[i * 3] & 0x04);
++        int cc_type  = data[i * 3] & 0x03;
++
++        if (cc_valid && cc_type == 0) {
++            memcpy(out, data + i * 3, 3);
 +            out += 3;
 +        }
 +    }
@@ -310,10 +360,13 @@ index bc176d8..eb602c2 100644
 +
 +    side = av_packet_get_side_data(pkt, AV_PKT_DATA_A53_CC, &side_size);
 +    if (side && side_size) {
-+        a53_cc = av_buffer_alloc(side_size);
-+        if (!a53_cc)
-+            return AVERROR(ENOMEM);
-+        memcpy(a53_cc->data, side, side_size);
++        ret = mediacodec_filter_a53_cc_triples(&a53_cc, side, side_size);
++        if (ret < 0) {
++            av_log(avctx, AV_LOG_DEBUG, "Could not filter packet A53 CC side data: %s\n",
++                   av_err2str(ret));
++            av_buffer_unref(&a53_cc);
++            return 0;
++        }
 +    } else {
 +        ret = mediacodec_h264_extract_a53_cc(&a53_cc, pkt->data, pkt->size);
 +        if (ret < 0) {
@@ -386,6 +439,12 @@ index bc176d8..eb602c2 100644
 +        av_buffer_unref(&s->a53_cc[best].buf);
 +    }
 +
++    /* Prevent unmatched captions from leaking across reconnects or timestamp jumps. */
++    for (int i = 0; i < MEDIACODEC_A53_CC_RING_SIZE; i++) {
++        if (s->a53_cc[i].buf && s->a53_cc[i].pts_us + 2000000 < pts_us)
++            av_buffer_unref(&s->a53_cc[i].buf);
++    }
++
 +    return 0;
 +}
 +
@@ -414,7 +473,7 @@ index bc176d8..eb602c2 100644
  static av_cold int mediacodec_decode_close(AVCodecContext *avctx)
  {
      MediaCodecH264DecContext *s = avctx->priv_data;
-@@ -68,6 +458,11 @@ static av_cold int mediacodec_decode_close(AVCodecContext *avctx)
+@@ -68,6 +517,11 @@ static av_cold int mediacodec_decode_close(AVCodecContext *avctx)
      ff_mediacodec_dec_close(avctx, s->ctx);
      s->ctx = NULL;
  
@@ -426,7 +485,7 @@ index bc176d8..eb602c2 100644
      av_packet_unref(&s->buffered_pkt);
  
      return 0;
-@@ -501,7 +896,7 @@ static int mediacodec_receive_frame(AVCodecContext *avctx, AVFrame *frame)
+@@ -501,7 +955,7 @@ static int mediacodec_receive_frame(AVCodecContext *avctx, AVFrame *frame)
      }
  
      /* poll for new frame */
@@ -435,7 +494,7 @@ index bc176d8..eb602c2 100644
      if (ret != AVERROR(EAGAIN))
          return ret;
  
-@@ -512,7 +907,7 @@ static int mediacodec_receive_frame(AVCodecContext *avctx, AVFrame *frame)
+@@ -512,7 +966,7 @@ static int mediacodec_receive_frame(AVCodecContext *avctx, AVFrame *frame)
              index = ff_AMediaCodec_dequeueInputBuffer(s->ctx->codec, 0);
              if (index < 0) {
                  /* no space, block for an output frame to appear */
@@ -444,7 +503,7 @@ index bc176d8..eb602c2 100644
                  /* Try again if both input port and output port return EAGAIN.
                   * If no data is consumed and no frame in output, it can make
                   * both avcodec_send_packet() and avcodec_receive_frame()
-@@ -558,12 +953,18 @@ static int mediacodec_receive_frame(AVCodecContext *avctx, AVFrame *frame)
+@@ -558,12 +1012,18 @@ static int mediacodec_receive_frame(AVCodecContext *avctx, AVFrame *frame)
              ret = ff_mediacodec_dec_send(avctx, s->ctx, &null_pkt, true);
              if (ret < 0)
                  return ret;
@@ -465,7 +524,7 @@ index bc176d8..eb602c2 100644
      }
  
      return AVERROR(EAGAIN);
-@@ -575,6 +976,12 @@ static void mediacodec_decode_flush(AVCodecContext *avctx)
+@@ -575,6 +1035,13 @@ static void mediacodec_decode_flush(AVCodecContext *avctx)
  
      av_packet_unref(&s->buffered_pkt);
  
@@ -473,6 +532,7 @@ index bc176d8..eb602c2 100644
 +    for (int i = 0; i < MEDIACODEC_A53_CC_RING_SIZE; i++)
 +        av_buffer_unref(&s->a53_cc[i].buf);
 +    s->a53_cc_next = 0;
++    s->a53_cc_seen = 0;
 +#endif
 +
      ff_mediacodec_dec_flush(avctx, s->ctx);
