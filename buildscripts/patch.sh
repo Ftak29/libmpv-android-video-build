@@ -6,7 +6,7 @@ set -euo pipefail
 
 PATCHES=(patches/*)
 ROOT=$(pwd)
-TVEZ_LIB_VER="TVEZLibA-1.9"
+TVEZ_LIB_VER="TVEZLibA-2.0"
 
 for dep_path in "${PATCHES[@]}"; do
     if [ -d "$dep_path" ]; then
