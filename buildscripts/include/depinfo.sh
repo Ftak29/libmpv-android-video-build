@@ -13,10 +13,10 @@ v_harfbuzz=12.3.0
 v_fribidi=1.0.16
 v_freetype=2-14-1
 v_mbedtls=3.6.5
-v_libplacebo=7.351.0
+v_libplacebo=7.387.0
 v_dav1d=1.5.3
 v_ffmpeg=9.0.2
-v_mpv=0.41.0
+v_mpv=0.42.0
 v_libvpx=1.15
 v_libwebp=1.6.0
 
