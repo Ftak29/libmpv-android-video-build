@@ -12,7 +12,7 @@ index bc176d8..9ff3ffe 100644
  #include "libavutil/mem.h"
  #include "libavutil/opt.h"
  #include "libavutil/intreadwrite.h"
-@@ -53,6 +55,14 @@ typedef struct MediaCodecH264DecContext {
+@@ -53,6 +55,14 @@ typedef struct MediaCodecContext {
  
      AVPacket buffered_pkt;
  
@@ -27,9 +27,9 @@ index bc176d8..9ff3ffe 100644
      int delay_flush;
      int amlogic_mpeg2_api23_workaround;
  
-@@ -61,6 +71,445 @@ typedef struct MediaCodecH264DecContext {
+@@ -61,6 +71,445 @@ typedef struct MediaCodecContext {
      int operating_rate;
- } MediaCodecH264DecContext;
+ } MediaCodecContext;
  
 +
 +#if CONFIG_H264_MEDIACODEC_DECODER
@@ -341,7 +341,7 @@ index bc176d8..9ff3ffe 100644
 +}
 +
 +static int mediacodec_a53_cc_queue_packet(AVCodecContext *avctx,
-+                                          MediaCodecH264DecContext *s,
++                                          MediaCodecContext *s,
 +                                          const AVPacket *pkt)
 +{
 +    AVBufferRef *a53_cc = NULL;
@@ -395,7 +395,7 @@ index bc176d8..9ff3ffe 100644
 +}
 +
 +static int mediacodec_a53_cc_attach_frame(AVCodecContext *avctx,
-+                                          MediaCodecH264DecContext *s,
++                                          MediaCodecContext *s,
 +                                          AVFrame *frame)
 +{
 +    int64_t pts_us;
@@ -449,7 +449,7 @@ index bc176d8..9ff3ffe 100644
 +}
 +
 +static int mediacodec_dec_receive_with_a53_cc(AVCodecContext *avctx,
-+                                              MediaCodecH264DecContext *s,
++                                              MediaCodecContext *s,
 +                                              AVFrame *frame,
 +                                              bool wait)
 +{
@@ -472,7 +472,7 @@ index bc176d8..9ff3ffe 100644
 +
  static av_cold int mediacodec_decode_close(AVCodecContext *avctx)
  {
-     MediaCodecH264DecContext *s = avctx->priv_data;
+     MediaCodecContext *s = avctx->priv_data;
 @@ -68,6 +517,11 @@ static av_cold int mediacodec_decode_close(AVCodecContext *avctx)
      ff_mediacodec_dec_close(avctx, s->ctx);
      s->ctx = NULL;
